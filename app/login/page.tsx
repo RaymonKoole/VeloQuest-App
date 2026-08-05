@@ -1,4 +1,31 @@
+"use client";
+
+import { useState } from "react";
+import { supabase } from "@/lib/supabase";
+
 export default function LoginPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [message, setMessage] = useState("");
+
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+
+    setMessage("");
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    setMessage("Succesvol ingelogd!");
+  }
+
   return (
     <main className="min-h-screen flex items-center justify-center bg-neutral-950 px-6">
       <div className="w-full max-w-md rounded-2xl border border-neutral-800 bg-neutral-900 p-8 shadow-2xl">
@@ -7,41 +34,39 @@ export default function LoginPage() {
         </h1>
 
         <p className="mb-8 text-neutral-400">
-          Log in op jouw VeloQuest account.
+          Log in op jouw VeloQuest-account.
         </p>
 
-        <form className="space-y-5">
-          <div>
-            <label className="mb-2 block text-sm text-neutral-300">
-              E-mailadres
-            </label>
+        <form onSubmit={handleLogin} className="space-y-5">
+          <input
+            type="email"
+            placeholder="E-mailadres"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full rounded-xl border border-neutral-700 bg-neutral-800 px-4 py-3 text-white"
+          />
 
-            <input
-              type="email"
-              placeholder="naam@email.nl"
-              className="w-full rounded-xl border border-neutral-700 bg-neutral-800 px-4 py-3 text-white outline-none focus:border-orange-500"
-            />
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm text-neutral-300">
-              Wachtwoord
-            </label>
-
-            <input
-              type="password"
-              placeholder="••••••••"
-              className="w-full rounded-xl border border-neutral-700 bg-neutral-800 px-4 py-3 text-white outline-none focus:border-orange-500"
-            />
-          </div>
+          <input
+            type="password"
+            placeholder="Wachtwoord"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full rounded-xl border border-neutral-700 bg-neutral-800 px-4 py-3 text-white"
+          />
 
           <button
             type="submit"
-            className="w-full rounded-xl bg-orange-500 py-3 font-semibold text-white transition hover:bg-orange-600"
+            className="w-full rounded-xl bg-orange-500 py-3 font-semibold text-white hover:bg-orange-600 transition"
           >
             Inloggen
           </button>
         </form>
+
+        {message && (
+          <p className="mt-6 text-center text-orange-400">
+            {message}
+          </p>
+        )}
       </div>
     </main>
   );
