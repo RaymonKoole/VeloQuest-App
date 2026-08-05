@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 export default function DashboardPage() {
   const router = useRouter();
-
+  const [userName, setUserName] = useState("");
+async function handleLogout() {
+  await supabase.auth.signOut();
+  router.push("/login");
+}
   useEffect(() => {
     async function checkUser() {
       const {
@@ -16,6 +20,9 @@ export default function DashboardPage() {
       if (!session) {
         router.push("/login");
       }
+      if (session?.user.user_metadata.full_name) {
+  setUserName(session.user.user_metadata.full_name);
+}
     }
 
     checkUser();
@@ -24,10 +31,17 @@ export default function DashboardPage() {
   return (
     <main className="min-h-screen bg-neutral-950 text-white">
       <div className="mx-auto max-w-6xl px-6 py-10">
-
+<div className="flex justify-end">
+  <button
+    onClick={handleLogout}
+    className="rounded-xl bg-red-600 px-4 py-2 text-white hover:bg-red-700 transition"
+  >
+    Uitloggen
+  </button>
+</div>
         <h1 className="text-4xl font-bold">
-          🚴 Welkom bij VeloQuest
-        </h1>
+  Welkom{userName ? `, ${userName}` : ""}! 👋
+</h1>
 
         <p className="mt-3 text-neutral-400">
           Je bent succesvol ingelogd.
