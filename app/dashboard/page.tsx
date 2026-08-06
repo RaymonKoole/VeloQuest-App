@@ -50,11 +50,21 @@ async function handleLogout() {
         <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
 
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
-            <h2 className="text-xl font-semibold">🚴 Ritten</h2>
-            <p className="mt-2 text-neutral-400">
-              Bekijk al je ritten.
-            </p>
-          </div>
+  <h2 className="text-xl font-semibold">
+    🚴 Strava
+  </h2>
+
+  <p className="mt-2 text-neutral-400">
+    Koppel je Strava-account om ritten te synchroniseren.
+  </p>
+
+  <a
+    href="/api/strava/auth"
+    className="mt-5 inline-block rounded-xl bg-orange-500 px-4 py-3 font-semibold text-white hover:bg-orange-600 transition"
+  >
+    Koppel met Strava
+  </a>
+</div>
 
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
             <h2 className="text-xl font-semibold">🏅 Badges</h2>
