@@ -3,6 +3,7 @@ import { exchangeCodeForToken } from "@/lib/strava/exchange";
 import { createSupabaseServerClient } from "@/lib/supabase-server-client";
 
 export async function GET(request: NextRequest) {
+  console.log("Cookies:", request.cookies.getAll());
   const supabase = await createSupabaseServerClient();
 
   const {
