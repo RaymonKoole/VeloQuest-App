@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 export default function DashboardPage() {
   const router = useRouter();
   const [userName, setUserName] = useState("");
+  const [stravaConnected, setStravaConnected] = useState(false);
 async function handleLogout() {
   await supabase.auth.signOut();
   router.push("/login");
@@ -22,6 +23,13 @@ async function handleLogout() {
       }
       if (session?.user.user_metadata.full_name) {
   setUserName(session.user.user_metadata.full_name);
+  const { data } = await supabase
+  .from("strava_accounts")
+  .select("id")
+  .eq("user_id", session.user.id)
+  .maybeSingle();
+
+setStravaConnected(!!data);
 }
     }
 
@@ -54,16 +62,26 @@ async function handleLogout() {
     🚴 Strava
   </h2>
 
-  <p className="mt-2 text-neutral-400">
-    Koppel je Strava-account om ritten te synchroniseren.
-  </p>
+  {stravaConnected ? (
+  <>
+    <p className="mt-2 text-green-400">
+      ✅ Strava is gekoppeld.
+    </p>
+  </>
+) : (
+  <>
+    <p className="mt-2 text-neutral-400">
+      Koppel je Strava-account om ritten te synchroniseren.
+    </p>
 
-  <a
-    href="/api/strava/auth"
-    className="mt-5 inline-block rounded-xl bg-orange-500 px-4 py-3 font-semibold text-white hover:bg-orange-600 transition"
-  >
-    Koppel met Strava
-  </a>
+    <a
+      href="/api/strava/auth"
+      className="mt-5 inline-block rounded-xl bg-orange-500 px-4 py-3 font-semibold text-white hover:bg-orange-600 transition"
+    >
+      Koppel met Strava
+    </a>
+  </>
+)}
 </div>
 
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
