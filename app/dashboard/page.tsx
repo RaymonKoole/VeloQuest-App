@@ -28,6 +28,17 @@ async function handleLogout() {
     Authorization: `Bearer ${session.access_token}`,
   },
 });
+const activitiesResponse = await fetch("/api/strava/activities", {
+  headers: {
+    Authorization: `Bearer ${session.access_token}`,
+  },
+});
+
+if (activitiesResponse.ok) {
+  const activitiesData = await activitiesResponse.json();
+
+  console.log("Strava activiteiten:", activitiesData.activities);
+}
 
 if (profileResponse.ok) {
   const profileData = await profileResponse.json();
