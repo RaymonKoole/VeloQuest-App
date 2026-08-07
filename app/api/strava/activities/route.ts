@@ -59,29 +59,47 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const response = await fetch(
-      "https://www.strava.com/api/v3/athlete/activities?per_page=10&page=1",
-      {
-        headers: {
-          Authorization: `Bearer ${stravaAccount.access_token}`,
-        },
-      }
-    );
+    const allActivities = [];
+let page = 1;
 
-    const activities = await response.json();
-
-    if (!response.ok) {
-      console.error("Strava activities error:", activities);
-
-      return NextResponse.json(
-        { error: "Strava-activiteiten konden niet worden opgehaald." },
-        { status: response.status }
-      );
+while (true) {
+  const response = await fetch(
+    `https://www.strava.com/api/v3/athlete/activities?per_page=100&page=${page}`,
+    {
+      headers: {
+        Authorization: `Bearer ${stravaAccount.access_token}`,
+      },
     }
+  );
 
-    return NextResponse.json({
-      activities,
-    });
+  const activities = await response.json();
+
+  if (!response.ok) {
+    console.error("Strava activities error:", activities);
+
+    return NextResponse.json(
+      { error: "Strava-activiteiten konden niet worden opgehaald." },
+      { status: response.status }
+    );
+  }
+
+  if (!Array.isArray(activities) || activities.length === 0) {
+    break;
+  }
+
+  allActivities.push(...activities);
+
+  if (activities.length < 100) {
+    break;
+  }
+
+  page++;
+}
+
+return NextResponse.json({
+  activities: allActivities,
+  count: allActivities.length,
+});
   } catch (error) {
     console.error("Strava activities error:", error);
 
