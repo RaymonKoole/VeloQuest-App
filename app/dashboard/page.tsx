@@ -13,28 +13,45 @@ async function handleLogout() {
   router.push("/login");
 }
   useEffect(() => {
-    async function checkUser() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+  async function checkUser() {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-      if (!session) {
-        router.push("/login");
-      }
-      if (session?.user.user_metadata.full_name) {
-  setUserName(session.user.user_metadata.full_name);
-  const { data } = await supabase
-  .from("strava_accounts")
-  .select("id")
-  .eq("user_id", session.user.id)
-  .maybeSingle();
-
-setStravaConnected(!!data);
-}
+    if (!session) {
+      router.push("/login");
+      return;
     }
 
-    checkUser();
-  }, [router]);
+    if (session.user.user_metadata.full_name) {
+      setUserName(session.user.user_metadata.full_name);
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const stravaCode = params.get("strava_code");
+
+    if (stravaCode) {
+      const response = await fetch("/api/strava/connect", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          code: stravaCode,
+        }),
+      });
+
+      if (response.ok) {
+        window.history.replaceState({}, "", "/dashboard");
+      } else {
+        console.error("Strava koppelen mislukt:", await response.text());
+      }
+    }
+  }
+
+  checkUser();
+}, [router]);
 
   return (
     <main className="min-h-screen bg-neutral-950 text-white">
