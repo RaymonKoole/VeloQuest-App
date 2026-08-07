@@ -22,6 +22,17 @@ async function handleLogout() {
       router.push("/login");
       return;
     }
+    const profileResponse = await fetch("/api/strava/profile", {
+  headers: {
+    Authorization: `Bearer ${session.access_token}`,
+  },
+});
+
+if (profileResponse.ok) {
+  const profileData = await profileResponse.json();
+
+  console.log("Strava profiel:", profileData.athlete);
+}
 
     if (session.user.user_metadata.full_name) {
       setUserName(session.user.user_metadata.full_name);
