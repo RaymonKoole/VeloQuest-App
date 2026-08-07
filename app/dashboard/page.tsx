@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 export default function DashboardPage() {
   const router = useRouter();
   const [userName, setUserName] = useState("");
+  const [stravaAthlete, setStravaAthlete] = useState<any>(null);
   const [stravaConnected, setStravaConnected] = useState(false);
 async function handleLogout() {
   await supabase.auth.signOut();
@@ -32,6 +33,8 @@ if (profileResponse.ok) {
   const profileData = await profileResponse.json();
 
   console.log("Strava profiel:", profileData.athlete);
+
+  setStravaAthlete(profileData.athlete);
 }
 
     if (session.user.user_metadata.full_name) {
@@ -90,26 +93,62 @@ if (profileResponse.ok) {
     🚴 Strava
   </h2>
 
-  {stravaConnected ? (
-  <>
-    <p className="mt-2 text-green-400">
-      ✅ Strava is gekoppeld.
-    </p>
-  </>
-) : (
-  <>
-    <p className="mt-2 text-neutral-400">
-      Koppel je Strava-account om ritten te synchroniseren.
-    </p>
+  {stravaAthlete ? (
+    <>
+      <div className="mt-4 flex items-center gap-4">
+        {stravaAthlete.profile && (
+          <img
+            src={stravaAthlete.profile}
+            alt="Strava profiel"
+            className="h-14 w-14 rounded-full"
+          />
+        )}
 
-    <a
-      href="/api/strava/auth"
-      className="mt-5 inline-block rounded-xl bg-orange-500 px-4 py-3 font-semibold text-white hover:bg-orange-600 transition"
-    >
-      Koppel met Strava
-    </a>
-  </>
-)}
+        <div>
+          <p className="font-semibold text-white">
+            {stravaAthlete.firstname} {stravaAthlete.lastname}
+          </p>
+
+          <p className="text-sm text-neutral-400">
+            Strava is gekoppeld ✓
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-5 grid grid-cols-2 gap-3">
+        <div className="rounded-xl bg-neutral-800 p-3">
+          <p className="text-sm text-neutral-400">
+            Stad
+          </p>
+          <p className="mt-1 font-semibold">
+            {stravaAthlete.city || "Onbekend"}
+          </p>
+        </div>
+
+        <div className="rounded-xl bg-neutral-800 p-3">
+          <p className="text-sm text-neutral-400">
+            Land
+          </p>
+          <p className="mt-1 font-semibold">
+            {stravaAthlete.country || "Onbekend"}
+          </p>
+        </div>
+      </div>
+    </>
+  ) : (
+    <>
+      <p className="mt-2 text-neutral-400">
+        Koppel je Strava-account om ritten te synchroniseren.
+      </p>
+
+      <a
+        href="/api/strava/auth"
+        className="mt-5 inline-block rounded-xl bg-orange-500 px-4 py-3 font-semibold text-white hover:bg-orange-600 transition"
+      >
+        Koppel met Strava
+      </a>
+    </>
+  )}
 </div>
 
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
