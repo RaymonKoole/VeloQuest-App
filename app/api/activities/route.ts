@@ -55,6 +55,7 @@ export async function GET(request: NextRequest) {
           `
         )
         .eq("user_id", user.id)
+        .not("activity_type", "eq", "Workout");
         .order("start_date", { ascending: false });
 
     if (activitiesError) {
