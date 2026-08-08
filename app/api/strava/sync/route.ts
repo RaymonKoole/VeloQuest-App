@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-
+import { calculateActivityXp } from "@/lib/xp/calculate";
 export async function POST(request: NextRequest) {
   try {
     const authorization = request.headers.get("authorization");
@@ -116,7 +116,54 @@ export async function POST(request: NextRequest) {
         .upsert(rows, {
           onConflict: "user_id,strava_activity_id",
         });
+const cyclingActivities = rows.filter(
+  (activity) =>
+    activity.activity_type === "Ride" ||
+    activity.activity_type === "GravelRide"
+);
 
+for (const activity of cyclingActivities) {
+  const xp = calculateActivityXp(activity);
+
+  const { data: savedActivity, error: activityError } =
+    await supabaseAdmin
+      .from("strava_activities")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("strava_activity_id", activity.strava_activity_id)
+      .single();
+
+  if (activityError || !savedActivity) {
+    console.error(
+      "Strava activity ID kon niet worden gevonden:",
+      activityError
+    );
+    continue;
+  }
+
+  const { error: xpError } = await supabaseAdmin
+    .from("activity_xp")
+    .upsert(
+      {
+        user_id: user.id,
+        activity_id: savedActivity.id,
+        distance_xp: xp.distanceXp,
+        elevation_xp: xp.elevationXp,
+        bonus_xp: xp.bonusXp,
+        total_xp: xp.totalXp,
+      },
+      {
+        onConflict: "activity_id",
+      }
+    );
+
+  if (xpError) {
+    console.error(
+      `XP kon niet worden opgeslagen voor activiteit ${savedActivity.id}:`,
+      xpError
+    );
+  }
+}
       if (upsertError) {
         console.error("Strava activities database error:", upsertError);
 
