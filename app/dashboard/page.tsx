@@ -218,170 +218,110 @@ if (profileResponse.ok) {
     </p>
   </div>
 </div>
+        {/* Strava / Badges / Routes / Profiel */}
         <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-<div className="mt-10 w-full rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
-  <div className="flex items-center justify-between">
-    <div>
-      <h2 className="text-2xl font-bold">
-        🚴 Recente ritten
-      </h2>
 
-      <p className="mt-2 text-neutral-400">
-        Je Strava-activiteiten opgeslagen in VeloQuest.
-      </p>
-    </div>
-  </div>
+          {/* Strava */}
+          <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
+            <h2 className="text-xl font-semibold">
+              🚴 Strava
+            </h2>
 
-  {activitiesLoading ? (
-    <p className="mt-6 text-neutral-400">
-      Activiteiten laden...
-    </p>
-  ) : activities.length === 0 ? (
-    <p className="mt-6 text-neutral-400">
-      Nog geen activiteiten gevonden.
-    </p>
-  ) : (
-    <div className="mt-6 overflow-hidden rounded-xl border border-neutral-800">
-      {activities.slice(0, 5).map((activity) => (
-        <div
-          key={activity.strava_activity_id}
-          className="border-b border-neutral-800 px-4 py-4 last:border-b-0"
-        >
-          <div className="grid gap-4 md:grid-cols-[2fr_1fr_1fr_1fr_1fr] md:items-center">
+            {stravaAthlete ? (
+              <>
+                <div className="mt-4 flex items-center gap-4">
+                  {stravaAthlete.profile && (
+                    <img
+                      src={stravaAthlete.profile}
+                      alt="Strava profiel"
+                      className="h-14 w-14 rounded-full"
+                    />
+                  )}
 
-            <div>
-              <h3 className="font-semibold text-white">
-                {activity.name || "Naamloze rit"}
-              </h3>
+                  <div>
+                    <p className="font-semibold text-white">
+                      {stravaAthlete.firstname} {stravaAthlete.lastname}
+                    </p>
 
-              <p className="mt-1 text-sm text-neutral-500">
-                {activity.activity_type || "Activiteit"}
-              </p>
-            </div>
+                    <p className="text-sm text-neutral-400">
+                      Strava is gekoppeld ✓
+                    </p>
 
-            <div className="text-sm text-neutral-300">
-              <span className="text-neutral-500">↔ </span>
-              {((activity.distance || 0) / 1000).toFixed(1)} km
-            </div>
+                    <button
+                      onClick={handleStravaSync}
+                      className="mt-5 rounded-xl bg-orange-500 px-4 py-3 font-semibold text-white hover:bg-orange-600 transition"
+                    >
+                      Synchroniseer activiteiten
+                    </button>
+                  </div>
+                </div>
 
-            <div className="text-sm text-neutral-300">
-              <span className="text-neutral-500">◷ </span>
-              {Math.floor((activity.moving_time || 0) / 3600)}u{" "}
-              {Math.floor(((activity.moving_time || 0) % 3600) / 60)}m
-            </div>
+                <div className="mt-5 grid grid-cols-2 gap-3">
+                  <div className="rounded-xl bg-neutral-800 p-3">
+                    <p className="text-sm text-neutral-400">
+                      Stad
+                    </p>
 
-            <div className="text-sm text-neutral-300">
-              <span className="text-neutral-500">△ </span>
-              {Math.round(activity.total_elevation_gain || 0)} m
-            </div>
+                    <p className="mt-1 font-semibold">
+                      {stravaAthlete.city || "Onbekend"}
+                    </p>
+                  </div>
 
-            <div className="text-sm text-neutral-400 md:text-right">
-              {new Date(activity.start_date).toLocaleDateString("nl-NL", {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-              })}
-            </div>
+                  <div className="rounded-xl bg-neutral-800 p-3">
+                    <p className="text-sm text-neutral-400">
+                      Land
+                    </p>
 
+                    <p className="mt-1 font-semibold">
+                      {stravaAthlete.country || "Onbekend"}
+                    </p>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="mt-2 text-neutral-400">
+                  Koppel je Strava-account om ritten te synchroniseren.
+                </p>
+
+                <a
+                  href="/api/strava/auth"
+                  className="mt-5 inline-block rounded-xl bg-orange-500 px-4 py-3 font-semibold text-white hover:bg-orange-600 transition"
+                >
+                  Koppel met Strava
+                </a>
+              </>
+            )}
           </div>
-        </div>
-      ))}
-    </div>
-  )}
 
-  {!activitiesLoading && activities.length > 5 && (
-    <button
-      className="mt-5 text-sm font-semibold text-purple-400 hover:text-purple-300 transition"
-    >
-      Bekijk alle ritten →
-    </button>
-  )}
-</div>
+          {/* Badges */}
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
-  <h2 className="text-xl font-semibold">
-    🚴 Strava
-  </h2>
+            <h2 className="text-xl font-semibold">
+              🏅 Badges
+            </h2>
 
-  {stravaAthlete ? (
-    <>
-      <div className="mt-4 flex items-center gap-4">
-        {stravaAthlete.profile && (
-          <img
-            src={stravaAthlete.profile}
-            alt="Strava profiel"
-            className="h-14 w-14 rounded-full"
-          />
-        )}
-
-        <div>
-          <p className="font-semibold text-white">
-            {stravaAthlete.firstname} {stravaAthlete.lastname}
-          </p>
-
-          <p className="text-sm text-neutral-400">
-            Strava is gekoppeld ✓
-          </p>
-          <button
-  onClick={handleStravaSync}
-  className="mt-5 rounded-xl bg-orange-500 px-4 py-3 font-semibold text-white hover:bg-orange-600 transition"
->
-  Synchroniseer activiteiten
-</button>
-        </div>
-      </div>
-
-      <div className="mt-5 grid grid-cols-2 gap-3">
-        <div className="rounded-xl bg-neutral-800 p-3">
-          <p className="text-sm text-neutral-400">
-            Stad
-          </p>
-          <p className="mt-1 font-semibold">
-            {stravaAthlete.city || "Onbekend"}
-          </p>
-        </div>
-
-        <div className="rounded-xl bg-neutral-800 p-3">
-          <p className="text-sm text-neutral-400">
-            Land
-          </p>
-          <p className="mt-1 font-semibold">
-            {stravaAthlete.country || "Onbekend"}
-          </p>
-        </div>
-      </div>
-    </>
-  ) : (
-    <>
-      <p className="mt-2 text-neutral-400">
-        Koppel je Strava-account om ritten te synchroniseren.
-      </p>
-
-      <a
-        href="/api/strava/auth"
-        className="mt-5 inline-block rounded-xl bg-orange-500 px-4 py-3 font-semibold text-white hover:bg-orange-600 transition"
-      >
-        Koppel met Strava
-      </a>
-    </>
-  )}
-</div>
-
-          <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
-            <h2 className="text-xl font-semibold">🏅 Badges</h2>
             <p className="mt-2 text-neutral-400">
               Verdien nieuwe achievements.
             </p>
           </div>
 
+          {/* Routes */}
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
-            <h2 className="text-xl font-semibold">🗺️ Routes</h2>
+            <h2 className="text-xl font-semibold">
+              🗺️ Routes
+            </h2>
+
             <p className="mt-2 text-neutral-400">
               Ontdek nieuwe routes.
             </p>
           </div>
 
+          {/* Profiel */}
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
-            <h2 className="text-xl font-semibold">⚙️ Profiel</h2>
+            <h2 className="text-xl font-semibold">
+              ⚙️ Profiel
+            </h2>
+
             <p className="mt-2 text-neutral-400">
               Beheer jouw account.
             </p>
@@ -389,6 +329,85 @@ if (profileResponse.ok) {
 
         </div>
 
+        {/* Recente ritten */}
+        <div className="mt-10 w-full rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold">
+                🚴 Recente ritten
+              </h2>
+
+              <p className="mt-2 text-neutral-400">
+                Je Strava-activiteiten opgeslagen in VeloQuest.
+              </p>
+            </div>
+          </div>
+
+          {activitiesLoading ? (
+            <p className="mt-6 text-neutral-400">
+              Activiteiten laden...
+            </p>
+          ) : activities.length === 0 ? (
+            <p className="mt-6 text-neutral-400">
+              Nog geen activiteiten gevonden.
+            </p>
+          ) : (
+            <div className="mt-6 overflow-hidden rounded-xl border border-neutral-800">
+              {activities.slice(0, 5).map((activity) => (
+                <div
+                  key={activity.strava_activity_id}
+                  className="border-b border-neutral-800 px-4 py-4 last:border-b-0"
+                >
+                  <div className="grid gap-4 md:grid-cols-[2fr_1fr_1fr_1fr_1fr] md:items-center">
+
+                    <div>
+                      <h3 className="font-semibold text-white">
+                        {activity.name || "Naamloze rit"}
+                      </h3>
+
+                      <p className="mt-1 text-sm text-neutral-500">
+                        {activity.activity_type || "Activiteit"}
+                      </p>
+                    </div>
+
+                    <div className="text-sm text-neutral-300">
+                      <span className="text-neutral-500">↔ </span>
+                      {((activity.distance || 0) / 1000).toFixed(1)} km
+                    </div>
+
+                    <div className="text-sm text-neutral-300">
+                      <span className="text-neutral-500">◷ </span>
+                      {Math.floor((activity.moving_time || 0) / 3600)}u{" "}
+                      {Math.floor(((activity.moving_time || 0) % 3600) / 60)}m
+                    </div>
+
+                    <div className="text-sm text-neutral-300">
+                      <span className="text-neutral-500">△ </span>
+                      {Math.round(activity.total_elevation_gain || 0)} m
+                    </div>
+
+                    <div className="text-sm text-neutral-400 md:text-right">
+                      {new Date(activity.start_date).toLocaleDateString("nl-NL", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </div>
+
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!activitiesLoading && activities.length > 5 && (
+            <button
+              className="mt-5 text-sm font-semibold text-purple-400 hover:text-purple-300 transition"
+            >
+              Bekijk alle ritten →
+            </button>
+          )}
+          </div>
       </div>
     </main>
   );
