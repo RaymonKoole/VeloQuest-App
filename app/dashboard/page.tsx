@@ -219,7 +219,7 @@ if (profileResponse.ok) {
   </div>
 </div>
         <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-<div className="mt-10 rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
+<div className="mt-10 w-full rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
   <h2 className="text-2xl font-bold">
     🚴 Recente ritten
   </h2>
