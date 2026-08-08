@@ -13,6 +13,8 @@ export default function DashboardPage() {
   const [activitiesLoading, setActivitiesLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [xpData, setXpData] = useState<any>(null);
+  const [xpLoading, setXpLoading] = useState(true);
   async function handleStravaSync() {
   const {
     data: { session },
@@ -35,6 +37,21 @@ if (activitiesResponse.ok) {
 }
 
 setActivitiesLoading(false);
+const xpResponse = await fetch("/api/xp", {
+  headers: {
+    Authorization: `Bearer ${session.access_token}`,
+  },
+});
+
+if (xpResponse.ok) {
+  const xpData = await xpResponse.json();
+
+  console.log("XP data:", xpData);
+
+  setXpData(xpData);
+}
+
+setXpLoading(false);
 const statsResponse = await fetch("/api/stats", {
   headers: {
     Authorization: `Bearer ${session.access_token}`,
@@ -187,6 +204,55 @@ if (profileResponse.ok) {
         <p className="mt-3 text-neutral-400">
           Je bent succesvol ingelogd.
         </p>
+        <div className="mt-8 rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
+  {xpLoading ? (
+    <p className="text-neutral-400">
+      XP laden...
+    </p>
+  ) : xpData ? (
+    <>
+      <div className="flex items-end justify-between">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-wider text-purple-400">
+            Level {xpData.level}
+          </p>
+
+          <p className="mt-1 text-3xl font-bold">
+            {xpData.totalXp.toLocaleString("nl-NL")} XP
+          </p>
+        </div>
+
+        <p className="text-sm text-neutral-400">
+          {xpData.xpIntoLevel} / {xpData.xpNeededForNextLevel} XP
+        </p>
+      </div>
+
+      <div className="mt-5 h-3 overflow-hidden rounded-full bg-neutral-800">
+        <div
+          className="h-full rounded-full bg-purple-500 transition-all"
+          style={{
+            width: `${
+              Math.min(
+                100,
+                (xpData.xpIntoLevel / xpData.xpNeededForNextLevel) * 100
+              )
+            }%`,
+          }}
+        />
+      </div>
+
+      <p className="mt-3 text-sm text-neutral-500">
+        Nog{" "}
+        {xpData.xpNeededForNextLevel - xpData.xpIntoLevel} XP
+        {" "}tot Level {xpData.level + 1}
+      </p>
+    </>
+  ) : (
+    <p className="text-neutral-400">
+      XP kon niet worden geladen.
+    </p>
+  )}
+</div>
 <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
   <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
     <p className="text-sm text-neutral-400">
