@@ -70,6 +70,34 @@ async function handleLogout() {
   await supabase.auth.signOut();
   router.push("/login");
 }
+async function handleXpSync() {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session) {
+    router.push("/login");
+    return;
+  }
+
+  const response = await fetch("/api/xp/sync", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+    },
+  });
+
+  const data = await response.json();
+
+  console.log("XP sync:", data);
+
+  if (!response.ok) {
+    alert(data.error || "XP synchroniseren mislukt.");
+    return;
+  }
+
+  alert(`${data.processed} activiteiten verwerkt voor XP.`);
+}
   useEffect(() => {
   async function checkUser() {
     const {
@@ -139,6 +167,12 @@ if (profileResponse.ok) {
     <main className="min-h-screen bg-neutral-950 text-white">
       <div className="mx-auto max-w-6xl px-6 py-10">
 <div className="flex justify-end">
+  <button
+  onClick={handleXpSync}
+  className="mr-3 rounded-xl bg-purple-600 px-4 py-2 text-white hover:bg-purple-700 transition"
+>
+  Bereken XP
+</button>
   <button
     onClick={handleLogout}
     className="rounded-xl bg-red-600 px-4 py-2 text-white hover:bg-red-700 transition"
