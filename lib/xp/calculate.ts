@@ -7,8 +7,8 @@ export function calculateActivityXp(activity: ActivityForXp) {
   const distanceKm = (activity.distance || 0) / 1000;
   const elevationMeters = activity.total_elevation_gain || 0;
 
-  const distanceXp = Math.floor(distanceKm);
-  const elevationXp = Math.floor(elevationMeters / 10);
+  const distanceXp = distanceKm;
+  const elevationXp = elevationMeters / 10;
 
   const bonusXp = 0;
 
