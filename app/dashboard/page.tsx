@@ -9,6 +9,8 @@ export default function DashboardPage() {
   const [userName, setUserName] = useState("");
   const [stravaAthlete, setStravaAthlete] = useState<any>(null);
   const [stravaConnected, setStravaConnected] = useState(false);
+  const [activities, setActivities] = useState<any[]>([]);
+const [activitiesLoading, setActivitiesLoading] = useState(true);
   async function handleStravaSync() {
   const {
     data: { session },
@@ -18,7 +20,19 @@ export default function DashboardPage() {
     router.push("/login");
     return;
   }
+const activitiesResponse = await fetch("/api/activities", {
+  headers: {
+    Authorization: `Bearer ${session.access_token}`,
+  },
+});
 
+if (activitiesResponse.ok) {
+  const activitiesData = await activitiesResponse.json();
+
+  setActivities(activitiesData.activities);
+}
+
+setActivitiesLoading(false);
   const response = await fetch("/api/strava/sync", {
     method: "POST",
     headers: {
@@ -126,7 +140,65 @@ if (profileResponse.ok) {
         </p>
 
         <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+<div className="mt-10 rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
+  <h2 className="text-2xl font-bold">
+    🚴 Recente ritten
+  </h2>
 
+  <p className="mt-2 text-neutral-400">
+    Je Strava-activiteiten opgeslagen in VeloQuest.
+  </p>
+
+  {activitiesLoading ? (
+    <p className="mt-6 text-neutral-400">
+      Activiteiten laden...
+    </p>
+  ) : activities.length === 0 ? (
+    <p className="mt-6 text-neutral-400">
+      Nog geen activiteiten gevonden.
+    </p>
+  ) : (
+    <div className="mt-6 space-y-3">
+      {activities.slice(0, 10).map((activity) => (
+        <div
+          key={activity.strava_activity_id}
+          className="rounded-xl bg-neutral-800 p-4"
+        >
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h3 className="font-semibold text-white">
+                {activity.name || "Naamloze rit"}
+              </h3>
+
+              <p className="text-sm text-neutral-400">
+                {activity.activity_type || "Activiteit"}
+              </p>
+            </div>
+
+            <div className="text-sm text-neutral-300">
+              {(activity.distance / 1000).toFixed(1)} km
+            </div>
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-4 text-sm text-neutral-400">
+            <span>
+              ⏱️ {Math.round(activity.moving_time / 60)} min
+            </span>
+
+            <span>
+              ⛰️ {Math.round(activity.total_elevation_gain || 0)} m
+            </span>
+
+            <span>
+              📅{" "}
+              {new Date(activity.start_date).toLocaleDateString("nl-NL")}
+            </span>
+          </div>
+        </div>
+      ))}
+    </div>
+  )}
+</div>
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
   <h2 className="text-xl font-semibold">
     🚴 Strava
