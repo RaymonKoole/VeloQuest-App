@@ -220,13 +220,17 @@ if (profileResponse.ok) {
 </div>
         <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
 <div className="mt-10 w-full rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
-  <h2 className="text-2xl font-bold">
-    🚴 Recente ritten
-  </h2>
+  <div className="flex items-center justify-between">
+    <div>
+      <h2 className="text-2xl font-bold">
+        🚴 Recente ritten
+      </h2>
 
-  <p className="mt-2 text-neutral-400">
-    Je Strava-activiteiten opgeslagen in VeloQuest.
-  </p>
+      <p className="mt-2 text-neutral-400">
+        Je Strava-activiteiten opgeslagen in VeloQuest.
+      </p>
+    </div>
+  </div>
 
   {activitiesLoading ? (
     <p className="mt-6 text-neutral-400">
@@ -237,45 +241,60 @@ if (profileResponse.ok) {
       Nog geen activiteiten gevonden.
     </p>
   ) : (
-    <div className="mt-6 space-y-3">
-      {activities.slice(0, 10).map((activity) => (
+    <div className="mt-6 overflow-hidden rounded-xl border border-neutral-800">
+      {activities.slice(0, 5).map((activity) => (
         <div
           key={activity.strava_activity_id}
-          className="rounded-xl bg-neutral-800 p-4"
+          className="border-b border-neutral-800 px-4 py-4 last:border-b-0"
         >
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div className="grid gap-4 md:grid-cols-[2fr_1fr_1fr_1fr_1fr] md:items-center">
+
             <div>
               <h3 className="font-semibold text-white">
                 {activity.name || "Naamloze rit"}
               </h3>
 
-              <p className="text-sm text-neutral-400">
+              <p className="mt-1 text-sm text-neutral-500">
                 {activity.activity_type || "Activiteit"}
               </p>
             </div>
 
             <div className="text-sm text-neutral-300">
-              {(activity.distance / 1000).toFixed(1)} km
+              <span className="text-neutral-500">↔ </span>
+              {((activity.distance || 0) / 1000).toFixed(1)} km
             </div>
-          </div>
 
-          <div className="mt-3 flex flex-wrap gap-4 text-sm text-neutral-400">
-            <span>
-              ⏱️ {Math.round(activity.moving_time / 60)} min
-            </span>
+            <div className="text-sm text-neutral-300">
+              <span className="text-neutral-500">◷ </span>
+              {Math.floor((activity.moving_time || 0) / 3600)}u{" "}
+              {Math.floor(((activity.moving_time || 0) % 3600) / 60)}m
+            </div>
 
-            <span>
-              ⛰️ {Math.round(activity.total_elevation_gain || 0)} m
-            </span>
+            <div className="text-sm text-neutral-300">
+              <span className="text-neutral-500">△ </span>
+              {Math.round(activity.total_elevation_gain || 0)} m
+            </div>
 
-            <span>
-              📅{" "}
-              {new Date(activity.start_date).toLocaleDateString("nl-NL")}
-            </span>
+            <div className="text-sm text-neutral-400 md:text-right">
+              {new Date(activity.start_date).toLocaleDateString("nl-NL", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })}
+            </div>
+
           </div>
         </div>
       ))}
     </div>
+  )}
+
+  {!activitiesLoading && activities.length > 5 && (
+    <button
+      className="mt-5 text-sm font-semibold text-purple-400 hover:text-purple-300 transition"
+    >
+      Bekijk alle ritten →
+    </button>
   )}
 </div>
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
