@@ -10,7 +10,9 @@ export default function DashboardPage() {
   const [stravaAthlete, setStravaAthlete] = useState<any>(null);
   const [stravaConnected, setStravaConnected] = useState(false);
   const [activities, setActivities] = useState<any[]>([]);
-const [activitiesLoading, setActivitiesLoading] = useState(true);
+  const [activitiesLoading, setActivitiesLoading] = useState(true);
+  const [stats, setStats] = useState<any>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
   async function handleStravaSync() {
   const {
     data: { session },
@@ -33,6 +35,19 @@ if (activitiesResponse.ok) {
 }
 
 setActivitiesLoading(false);
+const statsResponse = await fetch("/api/stats", {
+  headers: {
+    Authorization: `Bearer ${session.access_token}`,
+  },
+});
+
+if (statsResponse.ok) {
+  const statsData = await statsResponse.json();
+
+  setStats(statsData);
+}
+
+setStatsLoading(false);
   const response = await fetch("/api/strava/sync", {
     method: "POST",
     headers: {
@@ -138,7 +153,71 @@ if (profileResponse.ok) {
         <p className="mt-3 text-neutral-400">
           Je bent succesvol ingelogd.
         </p>
+<div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+  <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
+    <p className="text-sm text-neutral-400">
+      Totale afstand
+    </p>
 
+    <p className="mt-2 text-3xl font-bold">
+      {statsLoading
+        ? "..."
+        : `${((stats?.totalDistance || 0) / 1000).toFixed(1)} km`}
+    </p>
+
+    <p className="mt-2 text-sm text-neutral-500">
+      Fietsritten
+    </p>
+  </div>
+
+  <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
+    <p className="text-sm text-neutral-400">
+      Hoogtemeters
+    </p>
+
+    <p className="mt-2 text-3xl font-bold">
+      {statsLoading
+        ? "..."
+        : `${Math.round(stats?.totalElevation || 0).toLocaleString("nl-NL")} m`}
+    </p>
+
+    <p className="mt-2 text-sm text-neutral-500">
+      Totaal geklommen
+    </p>
+  </div>
+
+  <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
+    <p className="text-sm text-neutral-400">
+      Aantal ritten
+    </p>
+
+    <p className="mt-2 text-3xl font-bold">
+      {statsLoading
+        ? "..."
+        : (stats?.totalActivities || 0).toLocaleString("nl-NL")}
+    </p>
+
+    <p className="mt-2 text-sm text-neutral-500">
+      Opgeslagen in VeloQuest
+    </p>
+  </div>
+
+  <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
+    <p className="text-sm text-neutral-400">
+      Fietstijd
+    </p>
+
+    <p className="mt-2 text-3xl font-bold">
+      {statsLoading
+        ? "..."
+        : `${Math.floor((stats?.totalMovingTime || 0) / 3600)} uur`}
+    </p>
+
+    <p className="mt-2 text-sm text-neutral-500">
+      Totale beweegtijd
+    </p>
+  </div>
+</div>
         <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
 <div className="mt-10 rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
   <h2 className="text-2xl font-bold">
