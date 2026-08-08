@@ -9,6 +9,34 @@ export default function DashboardPage() {
   const [userName, setUserName] = useState("");
   const [stravaAthlete, setStravaAthlete] = useState<any>(null);
   const [stravaConnected, setStravaConnected] = useState(false);
+  async function handleStravaSync() {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session) {
+    router.push("/login");
+    return;
+  }
+
+  const response = await fetch("/api/strava/sync", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+    },
+  });
+
+  const data = await response.json();
+
+  console.log("Strava sync:", data);
+
+  if (!response.ok) {
+    alert(data.error || "Synchroniseren mislukt.");
+    return;
+  }
+
+  alert(`Synchronisatie klaar! ${data.imported} activiteiten verwerkt.`);
+}
 async function handleLogout() {
   await supabase.auth.signOut();
   router.push("/login");
@@ -123,6 +151,12 @@ if (profileResponse.ok) {
           <p className="text-sm text-neutral-400">
             Strava is gekoppeld ✓
           </p>
+          <button
+  onClick={handleStravaSync}
+  className="mt-5 rounded-xl bg-orange-500 px-4 py-3 font-semibold text-white hover:bg-orange-600 transition"
+>
+  Synchroniseer activiteiten
+</button>
         </div>
       </div>
 
