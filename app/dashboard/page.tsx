@@ -15,6 +15,8 @@ export default function DashboardPage() {
   const [statsLoading, setStatsLoading] = useState(true);
   const [badges, setBadges] = useState<any[]>([]);
   const [badgesLoading, setBadgesLoading] = useState(true);
+  const [skills, setSkills] = useState<any[]>([]);
+  const [skillsLoading, setSkillsLoading] = useState(true);
   const [xpData, setXpData] = useState<any>(null);
   const [xpLoading, setXpLoading] = useState(true);
   async function handleStravaSync() {
@@ -43,6 +45,19 @@ const activitiesResponse = await fetch("/api/activities", {
     Authorization: `Bearer ${session.access_token}`,
   },
 });
+
+const skillsResponse = await fetch("/api/skills", {
+  headers: {
+    Authorization: `Bearer ${session.access_token}`,
+  },
+});
+
+if (skillsResponse.ok) {
+  const skillsData = await skillsResponse.json();
+  setSkills(skillsData.skills);
+}
+
+setSkillsLoading(false);
 
 if (activitiesResponse.ok) {
   const activitiesData = await activitiesResponse.json();
@@ -310,6 +325,94 @@ if (profileResponse.ok) {
 </div>
         {/* Strava / Badges / Routes / Profiel */}
         <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+
+<div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6 lg:col-span-2">
+  <div className="flex items-center justify-between">
+    <div>
+      <h2 className="text-xl font-semibold">
+        ⚔️ Skills
+      </h2>
+
+      <p className="mt-2 text-sm text-neutral-400">
+        Train je vaardigheden door te fietsen.
+      </p>
+    </div>
+  </div>
+
+  {skillsLoading ? (
+    <p className="mt-6 text-sm text-neutral-400">
+      Skills laden...
+    </p>
+  ) : (
+    <div className="mt-6 space-y-5">
+      {skills.map((skill) => {
+        const currentLevelXp =
+          Math.pow(skill.level - 1, 2) * 100;
+
+        const nextLevelXp =
+          Math.pow(skill.level, 2) * 100;
+
+        const progress =
+          nextLevelXp > currentLevelXp
+            ? Math.min(
+                100,
+                Math.max(
+                  0,
+                  ((skill.xp - currentLevelXp) /
+                    (nextLevelXp - currentLevelXp)) *
+                    100
+                )
+              )
+            : 100;
+
+        return (
+          <div key={skill.id}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">
+                  {skill.icon}
+                </span>
+
+                <div>
+                  <p className="font-semibold">
+                    {skill.name}
+                  </p>
+
+                  <p className="text-xs text-neutral-500">
+                    {skill.description}
+                  </p>
+                </div>
+              </div>
+
+              <div className="text-right">
+                <p className="font-bold">
+                  Level {skill.level}
+                </p>
+
+                <p className="text-xs text-neutral-500">
+                  {Math.round(skill.xp)} XP
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-neutral-800">
+              <div
+                className="h-full rounded-full bg-purple-500 transition-all"
+                style={{
+                  width: `${progress}%`,
+                }}
+              />
+            </div>
+
+            <p className="mt-1 text-right text-xs text-neutral-600">
+              {Math.round(progress)}% naar Level {skill.level + 1}
+            </p>
+          </div>
+        );
+      })}
+    </div>
+  )}
+</div>
 
           {/* Strava */}
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
