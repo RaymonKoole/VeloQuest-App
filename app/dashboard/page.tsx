@@ -13,6 +13,8 @@ export default function DashboardPage() {
   const [activitiesLoading, setActivitiesLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [badges, setBadges] = useState<any[]>([]);
+  const [badgesLoading, setBadgesLoading] = useState(true);
   const [xpData, setXpData] = useState<any>(null);
   const [xpLoading, setXpLoading] = useState(true);
   async function handleStravaSync() {
@@ -24,6 +26,18 @@ export default function DashboardPage() {
     router.push("/login");
     return;
   }
+  const badgesResponse = await fetch("/api/badges", {
+  headers: {
+    Authorization: `Bearer ${session.access_token}`,
+  },
+});
+
+if (badgesResponse.ok) {
+  const badgesData = await badgesResponse.json();
+  setBadges(badgesData.badges);
+}
+
+setBadgesLoading(false);
 const activitiesResponse = await fetch("/api/activities", {
   headers: {
     Authorization: `Bearer ${session.access_token}`,
@@ -152,6 +166,16 @@ if (profileResponse.ok) {
   checkUser();
 }, [router]);
 
+          {/* Badges */}
+          <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
+            <h2 className="text-xl font-semibold">
+              🏅 Badges
+            </h2>
+
+            <p className="mt-2 text-neutral-400">
+              Verdien nieuwe achievements.
+            </p>
+          </div>
   return (
     <main className="min-h-screen bg-neutral-950 text-white">
       <div className="mx-auto max-w-6xl px-6 py-10">
@@ -360,16 +384,65 @@ if (profileResponse.ok) {
             )}
           </div>
 
-          {/* Badges */}
-          <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
-            <h2 className="text-xl font-semibold">
-              🏅 Badges
-            </h2>
+   {/* Badges */}       
+<div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
+  <div className="flex items-center justify-between">
+    <div>
+      <h2 className="text-xl font-semibold">
+        🏅 Badges
+      </h2>
 
-            <p className="mt-2 text-neutral-400">
-              Verdien nieuwe achievements.
-            </p>
+      <p className="mt-2 text-sm text-neutral-400">
+        Ontgrendel achievements tijdens je fietsavonturen.
+      </p>
+    </div>
+
+    <span className="text-sm text-neutral-500">
+      {badges.filter((badge) => badge.unlocked).length}/{badges.length}
+    </span>
+  </div>
+
+  {badgesLoading ? (
+    <p className="mt-6 text-sm text-neutral-400">
+      Badges laden...
+    </p>
+  ) : (
+    <div className="mt-6 grid grid-cols-2 gap-3">
+      {badges.map((badge) => (
+        <div
+          key={badge.id}
+          className={`rounded-xl border p-4 transition ${
+            badge.unlocked
+              ? "border-purple-500/40 bg-purple-500/10"
+              : "border-neutral-800 bg-neutral-950 opacity-50"
+          }`}
+        >
+          <div className="text-3xl">
+            {badge.icon}
           </div>
+
+          <p className="mt-2 font-semibold">
+            {badge.name}
+          </p>
+
+          <p className="mt-1 text-xs text-neutral-400">
+            {badge.description}
+          </p>
+
+          {badge.unlocked ? (
+            <p className="mt-3 text-xs font-semibold text-purple-400">
+              ✓ Ontgrendeld
+            </p>
+          ) : (
+            <p className="mt-3 text-xs text-neutral-500">
+              🔒 Nog niet ontgrendeld
+            </p>
+          )}
+        </div>
+      ))}
+    </div>
+  )}
+</div>
 
           {/* Routes */}
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
