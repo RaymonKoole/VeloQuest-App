@@ -122,15 +122,15 @@ if (
       );
 
   if (rewardError) {
-    console.error(
-      `Quest reward error for ${quest.name}:`,
-      rewardError
-    );
+  console.error(
+    `Quest reward error for ${quest.name}:`,
+    rewardError
+  );
 
-    throw new Error(
-      `Quest reward kon niet worden opgeslagen: ${quest.name}`
-    );
-  }
+  throw new Error(
+    `Quest reward kon niet worden opgeslagen: ${quest.name} - ${rewardError.message}`
+  );
+}
 }
 
     await supabaseAdmin
