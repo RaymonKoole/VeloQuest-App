@@ -375,8 +375,8 @@ if (profileResponse.ok) {
                 </p>
 
                 <p className="text-xs text-neutral-500">
-                  {Math.round(skill.xp)} XP
-                </p>
+  {Math.round(skill.xp).toLocaleString("nl-NL")} XP
+</p>
               </div>
             </div>
 
@@ -389,13 +389,20 @@ if (profileResponse.ok) {
               />
             </div>
 
-            <p className="mt-1 text-right text-xs text-neutral-600">
-              {skillProgress.level >= 99
-  ? "Max Level"
-  : `${Math.round(skillProgress.progress)}% naar Level ${
-      skillProgress.level + 1
-    }`}
-            </p>
+            <div className="mt-2 flex items-center justify-between text-xs text-neutral-600">
+  <span>
+    {Math.round(skill.xp).toLocaleString("nl-NL")} XP
+  </span>
+
+  {skillProgress.level >= 99 ? (
+    <span>🏆 Max Level</span>
+  ) : (
+    <span>
+      {Math.ceil(skillProgress.xpToNextLevel).toLocaleString("nl-NL")} XP naar Level{" "}
+      {skillProgress.level + 1}
+    </span>
+  )}
+</div>
           </div>
         );
       })}
