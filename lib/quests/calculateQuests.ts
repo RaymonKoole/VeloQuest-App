@@ -72,28 +72,66 @@ export async function calculateQuests(userId: string) {
       progress >= quest.requirement_value;
 
     const { data: existingQuest } =
-      await supabaseAdmin
-        .from("user_quests")
-        .select("completed")
-        .eq("user_id", userId)
-        .eq("quest_id", quest.id)
-        .maybeSingle();
+  await supabaseAdmin
+    .from("user_quests")
+    .select(
+      "completed, reward_claimed, reward_xp_awarded"
+    )
+    .eq("user_id", userId)
+    .eq("quest_id", quest.id)
+    .maybeSingle();
 
     const update: any = {
-      user_id: userId,
-      quest_id: quest.id,
-      progress,
-      completed,
-      updated_at: new Date().toISOString(),
-    };
+  user_id: userId,
+  quest_id: quest.id,
+  progress,
+  completed,
+  reward_claimed: existingQuest?.reward_claimed || false,
+  reward_xp_awarded:
+    existingQuest?.reward_xp_awarded || 0,
+  updated_at: new Date().toISOString(),
+};
 
     if (
-      completed &&
-      !existingQuest?.completed
-    ) {
-      update.completed_at =
-        new Date().toISOString();
-    }
+  completed &&
+  !existingQuest?.completed
+) {
+  update.completed_at =
+    new Date().toISOString();
+}
+
+if (
+  completed &&
+  !existingQuest?.reward_claimed
+) {
+  update.reward_claimed = true;
+  update.reward_xp_awarded = quest.reward_xp;
+
+  const { error: rewardError } =
+    await supabaseAdmin
+      .from("quest_xp")
+      .upsert(
+        {
+          user_id: userId,
+          quest_id: quest.id,
+          amount: quest.reward_xp,
+        },
+        {
+          onConflict: "user_id,quest_id",
+        }
+      );
+
+  if (rewardError) {
+    console.error(
+      `Quest reward error for ${quest.name}:`,
+      rewardError
+    );
+
+    throw new Error(
+      `Quest reward kon niet worden opgeslagen: ${quest.name}`
+    );
+  }
+}
 
     await supabaseAdmin
       .from("user_quests")
