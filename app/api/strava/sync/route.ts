@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { calculateActivityXp } from "@/lib/xp/calculate";
 import { checkBadges } from "@/lib/badges/checkBadges";
+import { calculateSkills } from "@/lib/skills/calculateSkills";
 export async function POST(request: NextRequest) {
   try {
     const authorization = request.headers.get("authorization");
@@ -175,6 +176,7 @@ for (const activity of cyclingActivities) {
       }
     }
 await checkBadges(user.id);
+await calculateSkills(user.id);
     return NextResponse.json({
       success: true,
       imported: rows.length,
