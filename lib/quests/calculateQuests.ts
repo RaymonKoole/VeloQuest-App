@@ -107,19 +107,27 @@ if (
   update.reward_claimed = true;
   update.reward_xp_awarded = quest.reward_xp;
 
-  const { error: rewardError } =
-    await supabaseAdmin
-      .from("quest_xp")
-      .upsert(
-        {
-          user_id: userId,
-          quest_id: quest.id,
-          amount: quest.reward_xp,
-        },
-        {
-          onConflict: "user_id,quest_id",
-        }
-      );
+  console.log("Quest reward data:", {
+  questId: quest.id,
+  questIdType: typeof quest.id,
+  rewardXp: quest.reward_xp,
+  rewardXpType: typeof quest.reward_xp,
+  userId,
+});
+
+const { error: rewardError } =
+  await supabaseAdmin
+    .from("quest_xp")
+    .upsert(
+      {
+        user_id: userId,
+        quest_id: Number(quest.id),
+        amount: Number(quest.reward_xp),
+      },
+      {
+        onConflict: "user_id,quest_id",
+      }
+    );
 
   if (rewardError) {
   console.error(
