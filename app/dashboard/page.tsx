@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { getSkillProgress } from "@/lib/progression/skillLevel";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -346,24 +347,8 @@ if (profileResponse.ok) {
   ) : (
     <div className="mt-6 space-y-5">
       {skills.map((skill) => {
-        const currentLevelXp =
-          Math.pow(skill.level - 1, 2) * 100;
+        const skillProgress = getSkillProgress(skill.xp);
 
-        const nextLevelXp =
-          Math.pow(skill.level, 2) * 100;
-
-        const progress =
-          nextLevelXp > currentLevelXp
-            ? Math.min(
-                100,
-                Math.max(
-                  0,
-                  ((skill.xp - currentLevelXp) /
-                    (nextLevelXp - currentLevelXp)) *
-                    100
-                )
-              )
-            : 100;
 
         return (
           <div key={skill.id}>
@@ -386,7 +371,7 @@ if (profileResponse.ok) {
 
               <div className="text-right">
                 <p className="font-bold">
-                  Level {skill.level}
+                  Level {skillProgress.level}
                 </p>
 
                 <p className="text-xs text-neutral-500">
@@ -399,13 +384,17 @@ if (profileResponse.ok) {
               <div
                 className="h-full rounded-full bg-purple-500 transition-all"
                 style={{
-                  width: `${progress}%`,
+                  width: `${skillProgress.progress}%`,
                 }}
               />
             </div>
 
             <p className="mt-1 text-right text-xs text-neutral-600">
-              {Math.round(progress)}% naar Level {skill.level + 1}
+              {skillProgress.level >= 99
+  ? "Max Level"
+  : `${Math.round(skillProgress.progress)}% naar Level ${
+      skillProgress.level + 1
+    }`}
             </p>
           </div>
         );

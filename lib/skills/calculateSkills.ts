@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { getSkillLevelFromXp } from "@/lib/progression/skillLevel";
 
 export async function calculateSkills(userId: string) {
   const supabaseAdmin = createClient(
@@ -64,7 +65,7 @@ export async function calculateSkills(userId: string) {
       continue;
     }
 
-    const level = Math.floor(Math.sqrt(xp / 100)) + 1;
+    const level = getSkillLevelFromXp(xp);
 
     const { error: upsertError } =
       await supabaseAdmin
