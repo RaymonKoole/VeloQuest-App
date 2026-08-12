@@ -40,9 +40,9 @@ export async function GET(request: NextRequest) {
       await supabaseAdmin
         .from("quests")
         .select(
-          "id, name, description, icon, requirement_type, requirement_value, reward_xp"
+          "id, name, description, icon, requirement_type, requirement_value, reward_xp, tier, sort_order, prerequisite_quest_id"
         )
-        .order("id");
+        .order("sort_order", { ascending: true });
 
     if (questsError) {
       console.error("Quests database error:", questsError);
@@ -83,11 +83,29 @@ export async function GET(request: NextRequest) {
     const result = (quests || []).map((quest) => {
       const progress = progressMap.get(quest.id);
 
+      const completed = progress?.completed || false;
+
+      let locked = false;
+
+      if (quest.prerequisite_quest_id) {
+        const prerequisite = progressMap.get(
+          quest.prerequisite_quest_id
+        );
+
+        locked = !prerequisite?.completed;
+      }
+
       return {
         ...quest,
         progress: progress?.progress || 0,
-        completed: progress?.completed || false,
+        completed,
         completed_at: progress?.completed_at || null,
+        locked,
+        status: locked
+          ? "locked"
+          : completed
+          ? "completed"
+          : "in_progress",
       };
     });
 
