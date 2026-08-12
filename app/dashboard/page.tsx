@@ -452,91 +452,106 @@ if (profileResponse.ok) {
   ) : (
     <div className="mt-6 space-y-4">
       {quests.map((quest) => {
-        const progress = Math.min(
-          100,
-          (quest.progress / quest.requirement_value) * 100
-        );
+  const progress = Math.min(
+    100,
+    (quest.progress / quest.requirement_value) * 100
+  );
 
-        return (
-          <div
-            key={quest.id}
-            className={`rounded-xl border p-4 ${
-              quest.completed
-                ? "border-green-500/30 bg-green-500/5"
-                : "border-neutral-800 bg-neutral-950"
-            }`}
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-start gap-3">
-                <span className="text-2xl">
-                  {quest.icon}
+  const isLocked = quest.status === "locked";
+  const isCompleted = quest.status === "completed";
+
+  return (
+    <div
+      key={quest.id}
+      className={`rounded-xl border p-4 ${
+        isLocked
+          ? "border-neutral-800 bg-neutral-950 opacity-50"
+          : isCompleted
+          ? "border-green-500/30 bg-green-500/5"
+          : "border-neutral-800 bg-neutral-950"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <span className="text-2xl">
+            {isLocked ? "🔒" : quest.icon}
+          </span>
+
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold">
+                {quest.name}
+              </h3>
+
+              {isLocked ? (
+                <span className="text-xs text-neutral-500">
+                  🔒 Vergrendeld
                 </span>
-
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold">
-                      {quest.name}
-                    </h3>
-
-                    {quest.completed && (
-                      <span className="text-xs text-green-400">
-                        ✓ Voltooid
-                      </span>
-                    )}
-                  </div>
-
-                  <p className="mt-1 text-sm text-neutral-500">
-                    {quest.description}
-                  </p>
-                </div>
-              </div>
-
-              <div className="whitespace-nowrap text-right">
-                <p className="text-sm font-semibold text-purple-400">
-                  +{quest.reward_xp} XP
-                </p>
-
-                {quest.completed && (
-                  <p className="mt-1 text-xs text-green-400">
-                    Quest voltooid
-                  </p>
-                )}
-              </div>
+              ) : isCompleted ? (
+                <span className="text-xs text-green-400">
+                  ✓ Voltooid
+                </span>
+              ) : (
+                <span className="text-xs text-purple-400">
+                  ⚔️ In progress
+                </span>
+              )}
             </div>
 
-            <div className="mt-4">
-              <div className="flex justify-between text-xs text-neutral-500">
-                <span>
-                  {quest.requirement_type === "distance"
-                    ? `${Number(quest.progress).toFixed(1)} / ${quest.requirement_value} km`
-                    : quest.requirement_type === "elevation"
-                    ? `${Math.round(quest.progress)} / ${quest.requirement_value} hm`
-                    : quest.requirement_type === "moving_time"
-                    ? `${Math.floor(quest.progress / 3600)} / ${Math.floor(quest.requirement_value / 3600)} uur`
-                    : `${Math.round(quest.progress)} / ${quest.requirement_value}`}
-                </span>
-
-                <span>
-                  {Math.round(progress)}%
-                </span>
-              </div>
-
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-neutral-800">
-                <div
-                  className={`h-full rounded-full transition-all ${
-                    quest.completed
-                      ? "bg-green-500"
-                      : "bg-purple-500"
-                  }`}
-                  style={{
-                    width: `${progress}%`,
-                  }}
-                />
-              </div>
-            </div>
+            <p className="mt-1 text-sm text-neutral-500">
+              {quest.description}
+            </p>
           </div>
-        );
-      })}
+        </div>
+
+        <div className="whitespace-nowrap text-right">
+          <p className="text-sm font-semibold text-purple-400">
+            +{quest.reward_xp} XP
+          </p>
+
+          {isCompleted && (
+            <p className="mt-1 text-xs text-green-400">
+              Quest voltooid
+            </p>
+          )}
+        </div>
+      </div>
+
+      {!isLocked && (
+        <div className="mt-4">
+          <div className="flex justify-between text-xs text-neutral-500">
+            <span>
+              {quest.requirement_type === "distance"
+                ? `${Number(quest.progress).toFixed(1)} / ${quest.requirement_value} km`
+                : quest.requirement_type === "elevation"
+                ? `${Math.round(quest.progress)} / ${quest.requirement_value} hm`
+                : quest.requirement_type === "moving_time"
+                ? `${Math.floor(quest.progress / 3600)} / ${Math.floor(quest.requirement_value / 3600)} uur`
+                : `${Math.round(quest.progress)} / ${quest.requirement_value}`}
+            </span>
+
+            <span>
+              {Math.round(progress)}%
+            </span>
+          </div>
+
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-neutral-800">
+            <div
+              className={`h-full rounded-full transition-all ${
+                isCompleted
+                  ? "bg-green-500"
+                  : "bg-purple-500"
+              }`}
+              style={{
+                width: `${progress}%`,
+              }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+})}
     </div>
   )}
 </div>
