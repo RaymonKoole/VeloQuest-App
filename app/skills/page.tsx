@@ -2,34 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
+import { getSkillProgress } from "@/lib/progression/skillLevel";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
 );
-
-function getLevelProgress(xp: number) {
-  const safeXp = Math.max(0, Number(xp) || 0);
-
-  const level = Math.floor(Math.sqrt(safeXp / 100)) + 1;
-  const currentLevelXp = Math.pow(level - 1, 2) * 100;
-  const nextLevelXp = Math.pow(level, 2) * 100;
-
-  const xpIntoLevel = safeXp - currentLevelXp;
-  const xpNeeded = nextLevelXp - currentLevelXp;
-
-  const progress =
-    xpNeeded > 0
-      ? Math.min(100, Math.max(0, (xpIntoLevel / xpNeeded) * 100))
-      : 100;
-
-  return {
-    level,
-    xpIntoLevel,
-    xpNeeded,
-    progress,
-  };
-}
 
 export default function SkillsPage() {
   const [skills, setSkills] = useState<any[]>([]);
@@ -137,8 +115,7 @@ export default function SkillsPage() {
         ) : (
           <div className="mt-8 grid gap-5 md:grid-cols-2">
             {skills.map((skill) => {
-              const xp = Number(skill.xp) || 0;
-              const skillProgress = getLevelProgress(xp);
+              const skillProgress = getSkillProgress(skill.xp);
 
               return (
                 <div
@@ -176,13 +153,12 @@ export default function SkillsPage() {
                   <div className="mt-6">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-neutral-400">
-                        {Math.round(xp).toLocaleString("nl-NL")} XP
+                        {Math.round(skill.xp).toLocaleString("nl-NL")} XP
                       </span>
 
                       <span className="text-neutral-500">
                         {Math.ceil(
-                          skillProgress.xpNeeded -
-                            skillProgress.xpIntoLevel
+                          skillProgress.xpToNextLevel
                         ).toLocaleString("nl-NL")}{" "}
                         XP naar Level {skillProgress.level + 1}
                       </span>
