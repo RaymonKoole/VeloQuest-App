@@ -23,6 +23,7 @@ function capitalize(text: string) {
 
 export default function WrappedPage() {
   const [data, setData] = useState<any>(null);
+  const [stops, setStops] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [index, setIndex] = useState(0);
@@ -38,12 +39,9 @@ export default function WrappedPage() {
         return;
       }
 
-      const response = await fetch("/api/wrapped", {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
+      const headers = { Authorization: `Bearer ${session.access_token}` };
 
+      const response = await fetch("/api/wrapped", { headers });
       const json = await response.json();
 
       if (!response.ok) {
@@ -54,6 +52,19 @@ export default function WrappedPage() {
 
       setData(json);
       setLoading(false);
+
+      // Pauzeplekken (bv. cafés) verwerken duurt langer (Overpass-lookups);
+      // laad dit los na de rest, zonder de Wrapped-kaarten te blokkeren.
+      fetch("/api/stops", { headers })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((stopsJson) => {
+          if (stopsJson) {
+            setStops(stopsJson);
+          }
+        })
+        .catch((stopsError) => {
+          console.error("Pauzeplekken laden mislukt:", stopsError);
+        });
     }
 
     loadWrapped();
@@ -184,6 +195,46 @@ export default function WrappedPage() {
       });
     }
 
+    if (data.prCount > 0) {
+      result.push({
+        emoji: "🥇",
+        title: "Persoonlijke records",
+        big: `${data.prCount}`,
+        sub: "nieuwe PR's op Strava-segmenten",
+        gradient: "from-rose-600 via-red-700 to-orange-800",
+      });
+    }
+
+    if (data.totalCalories > 0) {
+      result.push({
+        emoji: "🔥",
+        title: "Verbrande calorieën",
+        big: `${data.totalCalories.toLocaleString("nl-NL")} kcal`,
+        sub: "dat heb je verdiend",
+        gradient: "from-orange-600 via-red-600 to-rose-700",
+      });
+    }
+
+    if (data.totalKudos > 0) {
+      result.push({
+        emoji: "👏",
+        title: "Kudos ontvangen",
+        big: `${data.totalKudos.toLocaleString("nl-NL")}`,
+        sub: "van andere Strava-gebruikers",
+        gradient: "from-sky-600 via-blue-700 to-indigo-800",
+      });
+    }
+
+    if (stops?.favoriteStop) {
+      result.push({
+        emoji: "☕",
+        title: "Favoriete pauzeplek",
+        big: stops.favoriteStop.name,
+        sub: `${stops.favoriteStop.count}x hier gestopt onderweg`,
+        gradient: "from-amber-700 via-orange-800 to-yellow-900",
+      });
+    }
+
     result.push({
       emoji: "✨",
       title: "Level & XP",
@@ -221,7 +272,7 @@ export default function WrappedPage() {
     });
 
     return result;
-  }, [data]);
+  }, [data, stops]);
 
   function goTo(newIndex: number) {
     setIndex(Math.max(0, Math.min(slides.length - 1, newIndex)));

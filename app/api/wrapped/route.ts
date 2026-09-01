@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
     const { data: activities, error: activitiesError } = await supabaseAdmin
       .from("strava_activities")
       .select(
-        "name, distance, moving_time, total_elevation_gain, average_speed, start_date, city, country"
+        "id, name, distance, moving_time, total_elevation_gain, average_speed, start_date, city, country, kudos_count, calories"
       )
       .eq("user_id", user.id)
       .in("activity_type", ["Ride", "GravelRide"])
@@ -233,6 +233,20 @@ export async function GET(request: NextRequest) {
       .from("quests")
       .select("id", { count: "exact", head: true });
 
+    const activityIds = rides.map((r: any) => r.id);
+
+    const { count: prCount } =
+      activityIds.length > 0
+        ? await supabaseAdmin
+            .from("activity_segment_efforts")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", user.id)
+            .eq("pr_rank", 1)
+        : { count: 0 };
+
+    const totalKudos = rides.reduce((sum, r: any) => sum + (r.kudos_count || 0), 0);
+    const totalCalories = rides.reduce((sum, r: any) => sum + (r.calories || 0), 0);
+
     return NextResponse.json({
       hasData: true,
       totalRides: rides.length,
@@ -268,6 +282,9 @@ export async function GET(request: NextRequest) {
       everestComparison: Math.round((totalElevation / EVEREST_HEIGHT_M) * 10) / 10,
       netherlandsComparison:
         Math.round((totalDistance / 1000 / NETHERLANDS_LENGTH_KM) * 10) / 10,
+      prCount: prCount || 0,
+      totalKudos: Math.round(totalKudos),
+      totalCalories: Math.round(totalCalories),
     });
   } catch (error) {
     console.error("Wrapped API error:", error);
