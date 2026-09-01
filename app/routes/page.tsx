@@ -26,6 +26,65 @@ export default function RoutesPage() {
   const [country, setCountry] = useState("");
   const [city, setCity] = useState("");
 
+  const [startAddress, setStartAddress] = useState("");
+  const [distanceKm, setDistanceKm] = useState("30");
+  const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState("");
+  const [generatedRoute, setGeneratedRoute] = useState<[number, number][] | null>(null);
+  const [generatedStats, setGeneratedStats] = useState<{
+    distanceKm: number;
+    newKm: number;
+    riddenKm: number;
+    startDisplayName: string;
+  } | null>(null);
+
+  async function handleGenerate(e: React.FormEvent) {
+    e.preventDefault();
+
+    setGenerating(true);
+    setGenerateError("");
+    setGeneratedRoute(null);
+    setGeneratedStats(null);
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session) {
+      window.location.href = "/login";
+      return;
+    }
+
+    const response = await fetch("/api/routes/generate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        startAddress,
+        distanceKm: Number(distanceKm),
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      setGenerateError(data.error || "Route genereren is mislukt.");
+      setGenerating(false);
+      return;
+    }
+
+    setGeneratedRoute(data.points);
+    setGeneratedStats({
+      distanceKm: data.distanceKm,
+      newKm: data.newKm,
+      riddenKm: data.riddenKm,
+      startDisplayName: data.startDisplayName,
+    });
+    setGenerating(false);
+  }
+
   useEffect(() => {
     async function loadRoutes() {
       const {
@@ -55,22 +114,33 @@ export default function RoutesPage() {
   }, []);
 
   const countries = useMemo(() => {
-    const set = new Set(
-      activities.map((activity) => activity.country).filter(Boolean) as string[]
-    );
+    const counts = new Map<string, number>();
 
-    return Array.from(set).sort();
+    for (const activity of activities) {
+      if (activity.country) {
+        counts.set(activity.country, (counts.get(activity.country) || 0) + 1);
+      }
+    }
+
+    return Array.from(counts.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   }, [activities]);
 
   const cities = useMemo(() => {
-    const set = new Set(
-      activities
-        .filter((activity) => !country || activity.country === country)
-        .map((activity) => activity.city)
-        .filter(Boolean) as string[]
-    );
+    const counts = new Map<string, number>();
 
-    return Array.from(set).sort();
+    for (const activity of activities) {
+      if (!activity.city) {
+        continue;
+      }
+
+      if (country && activity.country !== country) {
+        continue;
+      }
+
+      counts.set(activity.city, (counts.get(activity.city) || 0) + 1);
+    }
+
+    return Array.from(counts.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   }, [activities, country]);
 
   const filteredActivities = useMemo(() => {
@@ -110,10 +180,10 @@ export default function RoutesPage() {
               }}
               className="rounded-xl border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-white"
             >
-              <option value="">Alle landen</option>
-              {countries.map((countryOption) => (
+              <option value="">Alle landen ({activities.length})</option>
+              {countries.map(([countryOption, count]) => (
                 <option key={countryOption} value={countryOption}>
-                  {countryOption}
+                  {countryOption} ({count})
                 </option>
               ))}
             </select>
@@ -124,28 +194,121 @@ export default function RoutesPage() {
               className="rounded-xl border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-white"
             >
               <option value="">Alle plaatsen</option>
-              {cities.map((cityOption) => (
+              {cities.map(([cityOption, count]) => (
                 <option key={cityOption} value={cityOption}>
-                  {cityOption}
+                  {cityOption} ({count})
                 </option>
               ))}
             </select>
           </div>
         </div>
 
-        <div className="mt-6 h-[520px] overflow-hidden rounded-2xl border border-neutral-800">
-          {loading ? (
-            <div className="flex h-full items-center justify-center text-neutral-400">
-              Routes laden...
+        <p className="mt-2 text-xs text-neutral-500">
+          Land en plaats worden automatisch bepaald op basis van de startlocatie van elke rit (via OpenStreetMap).
+        </p>
+
+        {/* Route genereren */}
+        <div className="mt-6 rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
+          <h2 className="text-lg font-semibold">✨ Genereer een route</h2>
+
+          <p className="mt-1 text-sm text-neutral-400">
+            Kiest waar mogelijk wegen die je nog niet hebt gefietst. Geen garantie op een exacte afstand — probeer
+            "Genereer opnieuw" voor een andere suggestie.
+          </p>
+
+          <form
+            onSubmit={handleGenerate}
+            className="mt-4 flex flex-wrap items-end gap-3"
+          >
+            <div className="flex-1 min-w-[220px]">
+              <label className="mb-1 block text-xs text-neutral-500">
+                Startadres
+              </label>
+
+              <input
+                type="text"
+                required
+                value={startAddress}
+                onChange={(e) => setStartAddress(e.target.value)}
+                placeholder="bijv. Larikslaan, Leusden"
+                className="w-full rounded-xl border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-white"
+              />
             </div>
-          ) : filteredActivities.length === 0 ? (
+
+            <div className="w-28">
+              <label className="mb-1 block text-xs text-neutral-500">
+                Afstand (km)
+              </label>
+
+              <input
+                type="number"
+                min={1}
+                max={150}
+                required
+                value={distanceKm}
+                onChange={(e) => setDistanceKm(e.target.value)}
+                className="w-full rounded-xl border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-white"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={generating}
+              className="rounded-xl bg-[#d59a57] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+            >
+              {generating
+                ? "Genereren..."
+                : generatedRoute
+                ? "Genereer opnieuw"
+                : "Genereer route"}
+            </button>
+          </form>
+
+          {generateError && (
+            <p className="mt-3 text-sm text-red-400">{generateError}</p>
+          )}
+
+          {generatedStats && (
+            <div className="mt-4 flex flex-wrap gap-6 text-sm">
+              <div>
+                <p className="text-neutral-500">Startpunt</p>
+                <p className="text-neutral-200">{generatedStats.startDisplayName}</p>
+              </div>
+
+              <div>
+                <p className="text-neutral-500">Totale afstand</p>
+                <p className="font-semibold text-cyan-400">{generatedStats.distanceKm} km</p>
+              </div>
+
+              <div>
+                <p className="text-neutral-500">Nieuwe wegen</p>
+                <p className="font-semibold text-cyan-400">{generatedStats.newKm} km</p>
+              </div>
+
+              <div>
+                <p className="text-neutral-500">Bekende wegen</p>
+                <p className="text-neutral-200">{generatedStats.riddenKm} km</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-6 h-[520px] overflow-hidden rounded-2xl border border-neutral-800">
+          {loading || generating ? (
+            <div className="flex h-full items-center justify-center text-neutral-400">
+              {generating ? "Route genereren..." : "Routes laden..."}
+            </div>
+          ) : filteredActivities.length === 0 && !generatedRoute ? (
             <div className="flex h-full items-center justify-center px-6 text-center text-neutral-400">
               {activities.length === 0
                 ? "Nog geen ritten met locatiegegevens gevonden. Synchroniseer je Strava-activiteiten opnieuw vanaf het dashboard."
                 : "Geen ritten gevonden voor dit filter."}
             </div>
           ) : (
-            <RoutesMap activities={filteredActivities} />
+            <RoutesMap
+              activities={filteredActivities}
+              generatedRoute={generatedRoute || undefined}
+            />
           )}
         </div>
 
