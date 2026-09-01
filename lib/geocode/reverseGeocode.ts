@@ -5,6 +5,7 @@ export async function reverseGeocode(lat: number, lng: number) {
     headers: {
       "User-Agent": "VeloQuest-App (https://veloquest-app.vercel.app)",
     },
+    signal: AbortSignal.timeout(10000),
   });
 
   if (!response.ok) {

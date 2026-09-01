@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -70,9 +70,11 @@ function clusterIcon(count: number) {
 function FitBounds({
   activities,
   generatedRoute,
+  selectedPoints,
 }: {
   activities: RouteActivity[];
   generatedRoute?: [number, number][];
+  selectedPoints: [number, number][] | null;
 }) {
   const map = useMap();
 
@@ -88,10 +90,16 @@ function FitBounds({
       return;
     }
 
-    const bounds = L.latLngBounds(points);
-
-    map.fitBounds(bounds, { padding: [40, 40] });
+    map.fitBounds(L.latLngBounds(points), { padding: [40, 40] });
+    // Only re-fit to the full data set when the data itself changes, not on selection
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activities, generatedRoute, map]);
+
+  useEffect(() => {
+    if (selectedPoints && selectedPoints.length > 1) {
+      map.fitBounds(L.latLngBounds(selectedPoints), { padding: [60, 60] });
+    }
+  }, [selectedPoints, map]);
 
   return null;
 }
@@ -125,6 +133,60 @@ export default function RoutesMap({
       ? [activities[0].start_lat, activities[0].start_lng]
       : [52.1, 5.3];
 
+  const [selectedIds, setSelectedIds] = useState<Set<number> | null>(null);
+
+  const activityPolylines = useMemo(() => {
+    const map = new Map<number, [number, number][]>();
+
+    for (const activity of activities) {
+      if (!activity.summary_polyline) {
+        continue;
+      }
+
+      const points = decodePolyline(activity.summary_polyline);
+
+      if (points.length > 1) {
+        map.set(activity.id, points);
+      }
+    }
+
+    return map;
+  }, [activities]);
+
+  const selectedPoints = useMemo(() => {
+    if (!selectedIds) {
+      return null;
+    }
+
+    const points: [number, number][] = [];
+
+    for (const id of selectedIds) {
+      const linePoints = activityPolylines.get(id);
+
+      if (linePoints) {
+        points.push(...linePoints);
+      }
+    }
+
+    return points.length > 0 ? points : null;
+  }, [selectedIds, activityPolylines]);
+
+  function selectCluster(clusterActivities: RouteActivity[]) {
+    const ids = new Set(clusterActivities.map((activity) => activity.id));
+
+    setSelectedIds((current) => {
+      if (
+        current &&
+        current.size === ids.size &&
+        [...ids].every((id) => current.has(id))
+      ) {
+        return null;
+      }
+
+      return ids;
+    });
+  }
+
   return (
     <MapContainer
       center={center}
@@ -138,13 +200,14 @@ export default function RoutesMap({
       />
 
       {activities.map((activity) => {
-        const polylinePoints = activity.summary_polyline
-          ? decodePolyline(activity.summary_polyline)
-          : null;
+        const polylinePoints = activityPolylines.get(activity.id);
 
-        if (!polylinePoints || polylinePoints.length < 2) {
+        if (!polylinePoints) {
           return null;
         }
+
+        const isSelected = selectedIds?.has(activity.id) ?? false;
+        const isDimmed = Boolean(selectedIds) && !isSelected;
 
         return (
           <Fragment key={`line-${activity.id}`}>
@@ -152,9 +215,9 @@ export default function RoutesMap({
             <Polyline
               positions={polylinePoints}
               pathOptions={{
-                color: BRAND_COLOR_DARK,
-                weight: 7,
-                opacity: 0.85,
+                color: isSelected ? "#7c4a12" : BRAND_COLOR_DARK,
+                weight: isSelected ? 9 : 7,
+                opacity: isDimmed ? 0.12 : 0.85,
                 lineCap: "round",
                 lineJoin: "round",
               }}
@@ -163,9 +226,9 @@ export default function RoutesMap({
             <Polyline
               positions={polylinePoints}
               pathOptions={{
-                color: BRAND_COLOR,
-                weight: 4,
-                opacity: 1,
+                color: isSelected ? "#ffd76a" : BRAND_COLOR,
+                weight: isSelected ? 6 : 4,
+                opacity: isDimmed ? 0.12 : 1,
                 lineCap: "round",
                 lineJoin: "round",
               }}
@@ -182,12 +245,15 @@ export default function RoutesMap({
             key={clusterKey(first)}
             position={[first.start_lat, first.start_lng]}
             icon={clusterIcon(clusterActivities.length)}
+            eventHandlers={{
+              click: () => selectCluster(clusterActivities),
+            }}
           >
             <Popup maxHeight={240}>
               <div className="min-w-[200px]">
                 {clusterActivities.length > 1 && (
                   <p className="mb-2 text-xs font-semibold text-neutral-500">
-                    {clusterActivities.length} ritten gestart vanaf dit punt
+                    {clusterActivities.length} ritten gestart vanaf dit punt — klik een rit voor de route
                   </p>
                 )}
 
@@ -195,10 +261,19 @@ export default function RoutesMap({
                   {clusterActivities.slice(0, 10).map((activity) => (
                     <div
                       key={activity.id}
-                      className="border-b border-neutral-200 pb-2 last:border-0 last:pb-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        selectCluster([activity]);
+                      }}
+                      className="cursor-pointer border-b border-neutral-200 pb-2 transition hover:bg-neutral-50 last:border-0 last:pb-0"
                     >
                       <p className="font-semibold text-neutral-900">
                         {activity.name || "Fietsrit"}
+                        {!activityPolylines.get(activity.id) && (
+                          <span className="ml-1 text-xs font-normal text-neutral-400">
+                            (geen route opgeslagen)
+                          </span>
+                        )}
                       </p>
 
                       <p className="text-xs text-neutral-600">
@@ -240,7 +315,25 @@ export default function RoutesMap({
         />
       )}
 
-      <FitBounds activities={activities} generatedRoute={generatedRoute} />
+      <FitBounds
+        activities={activities}
+        generatedRoute={generatedRoute}
+        selectedPoints={selectedPoints}
+      />
+
+      {selectedIds && (
+        <div className="leaflet-top leaflet-right">
+          <div className="leaflet-control leaflet-bar">
+            <button
+              type="button"
+              onClick={() => setSelectedIds(null)}
+              className="bg-white px-3 py-1.5 text-xs font-semibold text-neutral-800 hover:bg-neutral-100"
+            >
+              ✕ Toon alle routes
+            </button>
+          </div>
+        </div>
+      )}
     </MapContainer>
   );
 }
