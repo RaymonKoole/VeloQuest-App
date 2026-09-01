@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Logo from "@/components/Logo";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Home", icon: "🏠" },
@@ -17,8 +18,9 @@ export default function Navbar({ active }: { active: string }) {
     <nav className="mb-8 flex flex-wrap items-center gap-2">
       <Link
         href="/dashboard"
-        className="mr-4 text-lg font-bold text-white"
+        className="mr-4 flex items-center gap-2 text-lg font-bold text-white"
       >
+        <Logo className="h-7 w-7" />
         VeloQuest
       </Link>
 

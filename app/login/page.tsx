@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import Logo from "@/components/Logo";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -31,6 +32,8 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen flex items-center justify-center bg-neutral-950 px-6">
       <div className="w-full max-w-md rounded-2xl border border-neutral-800 bg-neutral-900 p-8 shadow-2xl">
+        <Logo className="mb-4 h-10 w-10" />
+
         <h1 className="mb-2 text-3xl font-bold text-white">
           Welkom terug
         </h1>
