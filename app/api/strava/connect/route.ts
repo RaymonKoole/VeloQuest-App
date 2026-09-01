@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { exchangeCodeForToken } from "@/lib/strava/exchange";
+import { verifyStravaState } from "@/lib/strava/state";
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,10 +35,20 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const code = body.code;
+    const state = body.state;
 
     if (!code) {
       return NextResponse.json(
         { error: "Geen Strava-code ontvangen." },
+        { status: 400 }
+      );
+    }
+
+    const stateUserId = state ? verifyStravaState(state) : null;
+
+    if (!stateUserId || stateUserId !== user.id) {
+      return NextResponse.json(
+        { error: "Ongeldige of verlopen Strava-koppeling. Probeer opnieuw te koppelen." },
         { status: 400 }
       );
     }

@@ -172,6 +172,7 @@ if (profileResponse.ok) {
 
     const params = new URLSearchParams(window.location.search);
     const stravaCode = params.get("strava_code");
+    const stravaState = params.get("strava_state");
 
     if (stravaCode) {
       const response = await fetch("/api/strava/connect", {
@@ -182,6 +183,7 @@ if (profileResponse.ok) {
         },
         body: JSON.stringify({
           code: stravaCode,
+          state: stravaState,
         }),
       });
 

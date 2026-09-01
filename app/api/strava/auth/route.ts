@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server-client";
+import { createStravaState } from "@/lib/strava/state";
 
 export async function GET(request: NextRequest) {
   const clientId = process.env.STRAVA_CLIENT_ID;
@@ -10,6 +12,18 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const supabase = await createSupabaseServerClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  const state = createStravaState(user.id);
+
   const redirectUri =
     "https://veloquest-app.vercel.app/api/strava/callback";
 
@@ -19,7 +33,8 @@ export async function GET(request: NextRequest) {
     `&response_type=code` +
     `&redirect_uri=${encodeURIComponent(redirectUri)}` +
     `&approval_prompt=force` +
-    `&scope=read,activity:read_all`;
+    `&scope=read,activity:read_all` +
+    `&state=${encodeURIComponent(state)}`;
 
   return NextResponse.redirect(url);
 }

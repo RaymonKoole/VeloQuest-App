@@ -4,6 +4,7 @@ import { calculateActivityXp } from "@/lib/xp/calculate";
 import { checkBadges } from "@/lib/badges/checkBadges";
 import { calculateSkills } from "@/lib/skills/calculateSkills";
 import { calculateQuests } from "@/lib/quests/calculateQuests";
+import { getValidStravaAccessToken } from "@/lib/strava/getAccessToken";
 export async function POST(request: NextRequest) {
   try {
     const authorization = request.headers.get("authorization");
@@ -39,15 +40,12 @@ export async function POST(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    const { data: stravaAccount, error: accountError } =
-      await supabaseAdmin
-        .from("strava_accounts")
-        .select("access_token")
-        .eq("user_id", user.id)
-        .maybeSingle();
+    let stravaAccessToken: string | null;
 
-    if (accountError) {
-      console.error("Strava account error:", accountError);
+    try {
+      stravaAccessToken = await getValidStravaAccessToken(user.id);
+    } catch (tokenError) {
+      console.error("Strava account error:", tokenError);
 
       return NextResponse.json(
         { error: "Strava-account kon niet worden gevonden." },
@@ -55,7 +53,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!stravaAccount) {
+    if (!stravaAccessToken) {
       return NextResponse.json(
         { error: "Geen Strava-account gekoppeld." },
         { status: 404 }
@@ -70,7 +68,7 @@ export async function POST(request: NextRequest) {
         `https://www.strava.com/api/v3/athlete/activities?per_page=100&page=${page}`,
         {
           headers: {
-            Authorization: `Bearer ${stravaAccount.access_token}`,
+            Authorization: `Bearer ${stravaAccessToken}`,
           },
         }
       );

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getValidStravaAccessToken } from "@/lib/strava/getAccessToken";
 
 export async function GET(request: NextRequest) {
   try {
@@ -31,22 +32,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    let stravaAccessToken: string | null;
 
-    const { data: stravaAccount, error: databaseError } =
-      await supabaseAdmin
-        .from("strava_accounts")
-        .select(
-          "athlete_id, access_token, refresh_token, expires_at"
-        )
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-    if (databaseError) {
-      console.error("Strava account error:", databaseError);
+    try {
+      stravaAccessToken = await getValidStravaAccessToken(user.id);
+    } catch (tokenError) {
+      console.error("Strava account error:", tokenError);
 
       return NextResponse.json(
         { error: "Strava-account kon niet worden gevonden." },
@@ -54,7 +45,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (!stravaAccount) {
+    if (!stravaAccessToken) {
       return NextResponse.json(
         { error: "Geen Strava-account gekoppeld." },
         { status: 404 }
@@ -65,7 +56,7 @@ export async function GET(request: NextRequest) {
       "https://www.strava.com/api/v3/athlete",
       {
         headers: {
-          Authorization: `Bearer ${stravaAccount.access_token}`,
+          Authorization: `Bearer ${stravaAccessToken}`,
         },
       }
     );
