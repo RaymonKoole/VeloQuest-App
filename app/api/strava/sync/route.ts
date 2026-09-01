@@ -109,6 +109,9 @@ export async function POST(request: NextRequest) {
       start_date: activity.start_date ?? null,
       average_speed: activity.average_speed ?? null,
       max_speed: activity.max_speed ?? null,
+      start_lat: activity.start_latlng?.[0] ?? null,
+      start_lng: activity.start_latlng?.[1] ?? null,
+      summary_polyline: activity.map?.summary_polyline ?? null,
     }));
 
     if (rows.length > 0) {
