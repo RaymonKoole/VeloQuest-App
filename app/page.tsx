@@ -1,9 +1,12 @@
 import Link from "next/link";
+import Logo from "@/components/Logo";
 
 export default function Home() {
   return (
     <main className="min-h-screen bg-neutral-950 text-white flex items-center justify-center px-6">
       <div className="max-w-xl text-center">
+        <Logo className="mx-auto mb-4 h-16 w-16" />
+
         <h1 className="text-5xl font-bold mb-6">VeloQuest</h1>
 
         <p className="text-neutral-400 text-lg mb-10">

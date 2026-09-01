@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { getSkillProgress } from "@/lib/progression/skillLevel";
+import Navbar from "@/components/Navbar";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -206,85 +208,85 @@ export default function DashboardPage() {
     checkUser();
   }, [router]);
 
-          {/* Badges */}
-          <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
-            <h2 className="text-xl font-semibold">
-              🏅 Badges
-            </h2>
-
-            <p className="mt-2 text-neutral-400">
-              Verdien nieuwe achievements.
-            </p>
-          </div>
   return (
     <main className="min-h-screen bg-neutral-950 text-white">
       <div className="mx-auto max-w-6xl px-6 py-10">
-        <nav className="mb-8 flex flex-wrap gap-2">
-  <a
-    href="/dashboard"
-    className="rounded-xl bg-purple-600 px-4 py-2 text-sm font-semibold text-white"
-  >
-    🏠 Home
-  </a>
+        <Navbar active="/dashboard" />
 
-  <a
-    href="/quests"
-    className="rounded-xl bg-neutral-900 px-4 py-2 text-sm text-neutral-300 hover:bg-neutral-800"
-  >
-    ⚔️ Quests
-  </a>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold">
+              Welkom{userName ? `, ${userName}` : ""}! 👋
+            </h1>
 
-  <a
-    href="/skills"
-    className="rounded-xl bg-neutral-900 px-4 py-2 text-sm text-neutral-300 hover:bg-neutral-800"
-  >
-    🧬 Skills
-  </a>
+            <p className="mt-1 text-neutral-400">
+              Hier is jouw overzicht.
+            </p>
+          </div>
 
-  <a
-    href="/achievements"
-    className="rounded-xl bg-neutral-900 px-4 py-2 text-sm text-neutral-300 hover:bg-neutral-800"
-  >
-    🏆 Achievements
-  </a>
+          <button
+            onClick={handleLogout}
+            className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 transition"
+          >
+            Uitloggen
+          </button>
+        </div>
 
-  <a
-    href="/activities"
-    className="rounded-xl bg-neutral-900 px-4 py-2 text-sm text-neutral-300 hover:bg-neutral-800"
-  >
-    🚴 Activities
-  </a>
-
-  <a
-    href="/routes"
-    className="rounded-xl bg-neutral-900 px-4 py-2 text-sm text-neutral-300 hover:bg-neutral-800"
-  >
-    🗺️ Routes
-  </a>
-
-  <a
-    href="/wrapped"
-    className="rounded-xl bg-neutral-900 px-4 py-2 text-sm text-neutral-300 hover:bg-neutral-800"
-  >
-    ✨ Wrapped
-  </a>
-</nav>
-<div className="flex justify-end">
-  <button
-    onClick={handleLogout}
-    className="rounded-xl bg-red-600 px-4 py-2 text-white hover:bg-red-700 transition"
-  >
-    Uitloggen
-  </button>
-</div>
-        <h1 className="text-4xl font-bold">
-  Welkom{userName ? `, ${userName}` : ""}! 👋
-</h1>
-
-        <p className="mt-3 text-neutral-400">
-          Je bent succesvol ingelogd.
-        </p>
+        {/* Strava */}
         <div className="mt-8 rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
+          <h2 className="text-xl font-semibold">
+            🚴 Strava
+          </h2>
+
+          {stravaAthlete ? (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                {stravaAthlete.profile && (
+                  <img
+                    src={stravaAthlete.profile}
+                    alt="Strava profiel"
+                    className="h-14 w-14 rounded-full"
+                  />
+                )}
+
+                <div>
+                  <p className="font-semibold text-white">
+                    {stravaAthlete.firstname} {stravaAthlete.lastname}
+                  </p>
+
+                  <p className="text-sm text-neutral-400">
+                    Strava is gekoppeld ✓
+                    {stravaAthlete.city ? ` · ${stravaAthlete.city}` : ""}
+                    {stravaAthlete.country ? `, ${stravaAthlete.country}` : ""}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={handleStravaSync}
+                className="rounded-xl bg-orange-500 px-4 py-3 font-semibold text-white hover:bg-orange-600 transition"
+              >
+                Synchroniseer activiteiten
+              </button>
+            </div>
+          ) : (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+              <p className="text-neutral-400">
+                Koppel je Strava-account om ritten automatisch te synchroniseren.
+              </p>
+
+              <a
+                href="/api/strava/auth"
+                className="rounded-xl bg-orange-500 px-4 py-3 font-semibold text-white hover:bg-orange-600 transition"
+              >
+                Koppel met Strava
+              </a>
+            </div>
+          )}
+        </div>
+
+        {/* XP */}
+        <div className="mt-6 rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
   {xpLoading ? (
     <p className="text-neutral-400">
       XP laden...
@@ -333,7 +335,7 @@ export default function DashboardPage() {
     </p>
   )}
 </div>
-<div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+<div className="mt-6 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
   <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
     <p className="text-sm text-neutral-400">
       Totale afstand
@@ -398,389 +400,128 @@ export default function DashboardPage() {
     </p>
   </div>
 </div>
-        {/* Strava / Badges / Routes / Profiel */}
-        <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-
-<div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6 lg:col-span-2">
-  <div className="flex items-center justify-between">
-    <div>
-      <h2 className="text-xl font-semibold">
-        ⚔️ Skills
-      </h2>
-
-      <p className="mt-2 text-sm text-neutral-400">
-        Train je vaardigheden door te fietsen.
-      </p>
-    </div>
-  </div>
-
-  {skillsLoading ? (
-    <p className="mt-6 text-sm text-neutral-400">
-      Skills laden...
-    </p>
-  ) : (
-    <div className="mt-6 space-y-5">
-      {skills.map((skill) => {
-        const skillProgress = getSkillProgress(skill.xp);
-
-
-        return (
-          <div key={skill.id}>
+        {/* Skills / Quests / Achievements */}
+        <div className="mt-6 grid gap-6 md:grid-cols-3">
+          <Link
+            href="/skills"
+            className="block rounded-2xl border border-neutral-800 bg-neutral-900 p-6 transition hover:border-purple-500/40"
+          >
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">
-                  {skill.icon}
-                </span>
+              <h2 className="text-lg font-semibold">
+                🧬 Skills
+              </h2>
 
-                <div>
-                  <p className="font-semibold">
-                    {skill.name}
-                  </p>
-
-                  <p className="text-xs text-neutral-500">
-                    {skill.description}
-                  </p>
-                </div>
-              </div>
-
-              <div className="text-right">
-                <p className="font-bold">
-                  Level {skillProgress.level}
-                </p>
-
-                <p className="text-xs text-neutral-500">
-  {Math.round(skill.xp).toLocaleString("nl-NL")} XP
-</p>
-              </div>
+              <span className="text-sm text-purple-400">
+                Bekijk alles →
+              </span>
             </div>
 
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-neutral-800">
-              <div
-                className="h-full rounded-full bg-purple-500 transition-all"
-                style={{
-                  width: `${skillProgress.progress}%`,
-                }}
-              />
-            </div>
+            {skillsLoading ? (
+              <p className="mt-4 text-sm text-neutral-400">
+                Laden...
+              </p>
+            ) : skills.length === 0 ? (
+              <p className="mt-4 text-sm text-neutral-400">
+                Nog geen skills beschikbaar.
+              </p>
+            ) : (
+              <div className="mt-4 space-y-2">
+                {skills.slice(0, 4).map((skill) => {
+                  const skillProgress = getSkillProgress(skill.xp);
 
-            <div className="mt-2 flex items-center justify-between text-xs text-neutral-600">
-  <span>
-    {Math.round(skill.xp).toLocaleString("nl-NL")} XP
-  </span>
-
-  {skillProgress.level >= 99 ? (
-    <span>🏆 Max Level</span>
-  ) : (
-    <span>
-      {Math.ceil(skillProgress.xpToNextLevel).toLocaleString("nl-NL")} XP naar Level{" "}
-      {skillProgress.level + 1}
-    </span>
-  )}
-</div>
-          </div>
-        );
-      })}
-    </div>
-  )}
-</div>
-<div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6 lg:col-span-2">
-  <div className="flex items-center justify-between">
-    <div>
-      <h2 className="text-xl font-semibold">
-        📜 Quests
-      </h2>
-
-      <p className="mt-2 text-sm text-neutral-400">
-        Voltooi uitdagingen tijdens je fietsavonturen.
-      </p>
-    </div>
-
-    <span className="text-sm text-neutral-500">
-      {quests.filter((quest) => quest.completed).length}/
-      {quests.length}
-    </span>
-  </div>
-
-  {questsLoading ? (
-    <p className="mt-6 text-sm text-neutral-400">
-      Quests laden...
-    </p>
-  ) : quests.length === 0 ? (
-    <p className="mt-6 text-sm text-neutral-400">
-      Nog geen quests beschikbaar.
-    </p>
-  ) : (
-    <div className="mt-6 space-y-4">
-      {quests.map((quest) => {
-  const progress = Math.min(
-    100,
-    (quest.progress / quest.requirement_value) * 100
-  );
-
-  const isLocked = quest.status === "locked";
-  const isCompleted = quest.status === "completed";
-
-  return (
-    <div
-      key={quest.id}
-      className={`rounded-xl border p-4 ${
-        isLocked
-          ? "border-neutral-800 bg-neutral-950 opacity-50"
-          : isCompleted
-          ? "border-green-500/30 bg-green-500/5"
-          : "border-neutral-800 bg-neutral-950"
-      }`}
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <span className="text-2xl">
-            {isLocked ? "🔒" : quest.icon}
-          </span>
-
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="font-semibold">
-                {quest.name}
-              </h3>
-
-              {isLocked ? (
-                <span className="text-xs text-neutral-500">
-                  🔒 Vergrendeld
-                </span>
-              ) : isCompleted ? (
-                <span className="text-xs text-green-400">
-                  ✓ Voltooid
-                </span>
-              ) : (
-                <span className="text-xs text-purple-400">
-                  ⚔️ In progress
-                </span>
-              )}
-            </div>
-
-            <p className="mt-1 text-sm text-neutral-500">
-              {quest.description}
-            </p>
-          </div>
-        </div>
-
-        <div className="whitespace-nowrap text-right">
-          <p className="text-sm font-semibold text-purple-400">
-            +{quest.reward_xp} XP
-          </p>
-
-          {isCompleted && (
-            <p className="mt-1 text-xs text-green-400">
-              Quest voltooid
-            </p>
-          )}
-        </div>
-      </div>
-
-      {!isLocked && (
-        <div className="mt-4">
-          <div className="flex justify-between text-xs text-neutral-500">
-            <span>
-              {quest.requirement_type === "distance"
-                ? `${Number(quest.progress).toFixed(1)} / ${quest.requirement_value} km`
-                : quest.requirement_type === "elevation"
-                ? `${Math.round(quest.progress)} / ${quest.requirement_value} hm`
-                : quest.requirement_type === "moving_time"
-                ? `${Math.floor(quest.progress / 3600)} / ${Math.floor(quest.requirement_value / 3600)} uur`
-                : `${Math.round(quest.progress)} / ${quest.requirement_value}`}
-            </span>
-
-            <span>
-              {Math.round(progress)}%
-            </span>
-          </div>
-
-          <div className="mt-2 h-2 overflow-hidden rounded-full bg-neutral-800">
-            <div
-              className={`h-full rounded-full transition-all ${
-                isCompleted
-                  ? "bg-green-500"
-                  : "bg-purple-500"
-              }`}
-              style={{
-                width: `${progress}%`,
-              }}
-            />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-})}
-    </div>
-  )}
-</div>
-          {/* Strava */}
-          <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
-            <h2 className="text-xl font-semibold">
-              🚴 Strava
-            </h2>
-
-            {stravaAthlete ? (
-              <>
-                <div className="mt-4 flex items-center gap-4">
-                  {stravaAthlete.profile && (
-                    <img
-                      src={stravaAthlete.profile}
-                      alt="Strava profiel"
-                      className="h-14 w-14 rounded-full"
-                    />
-                  )}
-
-                  <div>
-                    <p className="font-semibold text-white">
-                      {stravaAthlete.firstname} {stravaAthlete.lastname}
-                    </p>
-
-                    <p className="text-sm text-neutral-400">
-                      Strava is gekoppeld ✓
-                    </p>
-
-                    <button
-                      onClick={handleStravaSync}
-                      className="mt-5 rounded-xl bg-orange-500 px-4 py-3 font-semibold text-white hover:bg-orange-600 transition"
+                  return (
+                    <div
+                      key={skill.id}
+                      className="flex items-center justify-between text-sm"
                     >
-                      Synchroniseer activiteiten
-                    </button>
-                  </div>
-                </div>
+                      <span className="text-neutral-300">
+                        {skill.icon} {skill.name}
+                      </span>
 
-                <div className="mt-5 grid grid-cols-2 gap-3">
-                  <div className="rounded-xl bg-neutral-800 p-3">
-                    <p className="text-sm text-neutral-400">
-                      Stad
-                    </p>
+                      <span className="text-neutral-500">
+                        Level {skillProgress.level}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Link>
 
-                    <p className="mt-1 font-semibold">
-                      {stravaAthlete.city || "Onbekend"}
-                    </p>
-                  </div>
+          <Link
+            href="/quests"
+            className="block rounded-2xl border border-neutral-800 bg-neutral-900 p-6 transition hover:border-purple-500/40"
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">
+                ⚔️ Quests
+              </h2>
 
-                  <div className="rounded-xl bg-neutral-800 p-3">
-                    <p className="text-sm text-neutral-400">
-                      Land
-                    </p>
+              <span className="text-sm text-purple-400">
+                Bekijk alles →
+              </span>
+            </div>
 
-                    <p className="mt-1 font-semibold">
-                      {stravaAthlete.country || "Onbekend"}
-                    </p>
-                  </div>
-                </div>
-              </>
+            {questsLoading ? (
+              <p className="mt-4 text-sm text-neutral-400">
+                Laden...
+              </p>
             ) : (
               <>
-                <p className="mt-2 text-neutral-400">
-                  Koppel je Strava-account om ritten te synchroniseren.
+                <p className="mt-4 text-3xl font-bold">
+                  {quests.filter((quest) => quest.completed).length}/
+                  {quests.length}
                 </p>
 
-                <a
-                  href="/api/strava/auth"
-                  className="mt-5 inline-block rounded-xl bg-orange-500 px-4 py-3 font-semibold text-white hover:bg-orange-600 transition"
-                >
-                  Koppel met Strava
-                </a>
+                <p className="mt-1 text-sm text-neutral-500">
+                  voltooid
+                </p>
               </>
             )}
-          </div>
+          </Link>
 
-   {/* Badges */}       
-<div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
-  <div className="flex items-center justify-between">
-    <div>
-      <h2 className="text-xl font-semibold">
-        🏅 Badges
-      </h2>
+          <Link
+            href="/achievements"
+            className="block rounded-2xl border border-neutral-800 bg-neutral-900 p-6 transition hover:border-purple-500/40"
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">
+                🏆 Achievements
+              </h2>
 
-      <p className="mt-2 text-sm text-neutral-400">
-        Ontgrendel achievements tijdens je fietsavonturen.
-      </p>
-    </div>
+              <span className="text-sm text-purple-400">
+                Bekijk alles →
+              </span>
+            </div>
 
-    <span className="text-sm text-neutral-500">
-      {badges.filter((badge) => badge.unlocked).length}/{badges.length}
-    </span>
-  </div>
+            {badgesLoading ? (
+              <p className="mt-4 text-sm text-neutral-400">
+                Laden...
+              </p>
+            ) : (
+              <>
+                <p className="mt-4 text-3xl font-bold">
+                  {badges.filter((badge) => badge.unlocked).length}/
+                  {badges.length}
+                </p>
 
-  {badgesLoading ? (
-    <p className="mt-6 text-sm text-neutral-400">
-      Badges laden...
-    </p>
-  ) : (
-    <div className="mt-6 grid grid-cols-2 gap-3">
-      {badges.map((badge) => (
-        <div
-          key={badge.id}
-          className={`rounded-xl border p-4 transition ${
-            badge.unlocked
-              ? "border-purple-500/40 bg-purple-500/10"
-              : "border-neutral-800 bg-neutral-950 opacity-50"
-          }`}
-        >
-          <div className="text-3xl">
-            {badge.icon}
-          </div>
-
-          <p className="mt-2 font-semibold">
-            {badge.name}
-          </p>
-
-          <p className="mt-1 text-xs text-neutral-400">
-            {badge.description}
-          </p>
-
-          {badge.unlocked ? (
-            <p className="mt-3 text-xs font-semibold text-purple-400">
-              ✓ Ontgrendeld
-            </p>
-          ) : (
-            <p className="mt-3 text-xs text-neutral-500">
-              🔒 Nog niet ontgrendeld
-            </p>
-          )}
-        </div>
-      ))}
-    </div>
-  )}
-</div>
-
-          {/* Routes */}
-          <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
-            <h2 className="text-xl font-semibold">
-              🗺️ Routes
-            </h2>
-
-            <p className="mt-2 text-neutral-400">
-              Ontdek nieuwe routes.
-            </p>
-          </div>
-
-          {/* Profiel */}
-          <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
-            <h2 className="text-xl font-semibold">
-              ⚙️ Profiel
-            </h2>
-
-            <p className="mt-2 text-neutral-400">
-              Beheer jouw account.
-            </p>
-          </div>
-
+                <p className="mt-1 text-sm text-neutral-500">
+                  ontgrendeld
+                </p>
+              </>
+            )}
+          </Link>
         </div>
 
         {/* Recente ritten */}
-        <div className="mt-10 w-full rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
+        <div className="mt-6 w-full rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold">
+              <h2 className="text-xl font-semibold">
                 🚴 Recente ritten
               </h2>
 
-              <p className="mt-2 text-neutral-400">
+              <p className="mt-1 text-sm text-neutral-400">
                 Je Strava-activiteiten opgeslagen in VeloQuest.
               </p>
             </div>
@@ -843,12 +584,13 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {!activitiesLoading && activities.length > 5 && (
-            <button
-              className="mt-5 text-sm font-semibold text-purple-400 hover:text-purple-300 transition"
+          {!activitiesLoading && activities.length > 0 && (
+            <Link
+              href="/activities"
+              className="mt-5 inline-block text-sm font-semibold text-purple-400 hover:text-purple-300 transition"
             >
               Bekijk alle ritten →
-            </button>
+            </Link>
           )}
           </div>
       </div>
