@@ -93,8 +93,8 @@ export async function POST(request: NextRequest) {
     }
 
     const radiusMeters = Math.min(
-      20000,
-      Math.max(2000, distanceKm * 1000 * 0.6)
+      8000,
+      Math.max(1500, distanceKm * 1000 * 0.35)
     );
 
     const graph = await fetchRoadGraph(

@@ -63,19 +63,42 @@ out body;
 out skel qt;
 `;
 
-  const response = await fetch("https://overpass-api.de/api/interpreter", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: `data=${encodeURIComponent(query)}`,
-  });
+  let response: Response;
 
-  if (!response.ok) {
-    throw new Error("Overpass-query mislukt.");
+  try {
+    response = await fetch("https://overpass-api.de/api/interpreter", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: `data=${encodeURIComponent(query)}`,
+      signal: AbortSignal.timeout(20000),
+    });
+  } catch (fetchError) {
+    console.error("Overpass fetch mislukt:", fetchError);
+    throw new Error(
+      "Kon geen verbinding maken met de OpenStreetMap-wegendata (Overpass). Probeer het straks opnieuw."
+    );
   }
 
-  const data = await response.json();
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    console.error("Overpass gaf een foutstatus:", response.status, body.slice(0, 500));
+    throw new Error(
+      "De OpenStreetMap-wegendata (Overpass) is momenteel overbelast of gaf een fout. Probeer het straks opnieuw."
+    );
+  }
+
+  let data: any;
+
+  try {
+    data = await response.json();
+  } catch (parseError) {
+    console.error("Overpass gaf geen geldige JSON terug:", parseError);
+    throw new Error(
+      "De OpenStreetMap-wegendata (Overpass) gaf een onverwacht antwoord. Probeer het straks opnieuw."
+    );
+  }
 
   const nodes = new Map<number, GraphNode>();
   const adjacency = new Map<number, GraphEdge[]>();

@@ -3,17 +3,32 @@ export async function forwardGeocode(query: string) {
     query
   )}`;
 
-  const response = await fetch(url, {
-    headers: {
-      "User-Agent": "VeloQuest-App (https://veloquest-app.vercel.app)",
-    },
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(url, {
+      headers: {
+        "User-Agent": "VeloQuest-App (https://veloquest-app.vercel.app)",
+      },
+      signal: AbortSignal.timeout(10000),
+    });
+  } catch (fetchError) {
+    console.error("Nominatim geocode fetch mislukt:", fetchError);
+    return null;
+  }
 
   if (!response.ok) {
     return null;
   }
 
-  const results = await response.json();
+  let results: any;
+
+  try {
+    results = await response.json();
+  } catch (parseError) {
+    console.error("Nominatim gaf geen geldige JSON terug:", parseError);
+    return null;
+  }
 
   if (!Array.isArray(results) || results.length === 0) {
     return null;
