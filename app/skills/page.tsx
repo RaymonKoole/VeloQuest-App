@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { getSkillProgress } from "@/lib/progression/skillLevel";
+import Navbar from "@/components/Navbar";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -44,56 +45,7 @@ export default function SkillsPage() {
   return (
     <main className="min-h-screen bg-neutral-950 text-white">
       <div className="mx-auto max-w-6xl px-6 py-10">
-        <nav className="mb-8 flex flex-wrap gap-2">
-          <a
-            href="/dashboard"
-            className="rounded-xl bg-neutral-900 px-4 py-2 text-sm text-neutral-300 hover:bg-neutral-800"
-          >
-            🏠 Home
-          </a>
-
-          <a
-            href="/quests"
-            className="rounded-xl bg-neutral-900 px-4 py-2 text-sm text-neutral-300 hover:bg-neutral-800"
-          >
-            ⚔️ Quests
-          </a>
-
-          <a
-            href="/skills"
-            className="rounded-xl bg-purple-600 px-4 py-2 text-sm font-semibold text-white"
-          >
-            🧬 Skills
-          </a>
-
-          <a
-            href="/achievements"
-            className="rounded-xl bg-neutral-900 px-4 py-2 text-sm text-neutral-300 hover:bg-neutral-800"
-          >
-            🏆 Achievements
-          </a>
-
-          <a
-            href="/activities"
-            className="rounded-xl bg-neutral-900 px-4 py-2 text-sm text-neutral-300 hover:bg-neutral-800"
-          >
-            🚴 Activities
-          </a>
-
-          <a
-            href="/routes"
-            className="rounded-xl bg-neutral-900 px-4 py-2 text-sm text-neutral-300 hover:bg-neutral-800"
-          >
-            🗺️ Routes
-          </a>
-
-          <a
-            href="/wrapped"
-            className="rounded-xl bg-neutral-900 px-4 py-2 text-sm text-neutral-300 hover:bg-neutral-800"
-          >
-            ✨ Wrapped
-          </a>
-        </nav>
+        <Navbar active="/skills" />
 
         <h1 className="text-4xl font-bold">
           🧬 Skills
