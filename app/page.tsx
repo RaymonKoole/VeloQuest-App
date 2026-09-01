@@ -13,7 +13,7 @@ export default function Home() {
         <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
           <Link
             href="/login"
-            className="rounded-xl bg-orange-500 px-6 py-3 font-semibold hover:bg-orange-600 transition"
+            className="rounded-xl bg-[#d59a57] px-6 py-3 font-semibold hover:opacity-90 transition"
           >
             Inloggen
           </Link>
