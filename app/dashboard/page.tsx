@@ -22,117 +22,87 @@ export default function DashboardPage() {
   const [questsLoading, setQuestsLoading] = useState(true);
   const [xpData, setXpData] = useState<any>(null);
   const [xpLoading, setXpLoading] = useState(true);
+  async function loadDashboardData(accessToken: string) {
+    const badgesResponse = await fetch("/api/badges", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (badgesResponse.ok) {
+      const badgesData = await badgesResponse.json();
+      setBadges(badgesData.badges);
+    }
+
+    setBadgesLoading(false);
+
+    const activitiesResponse = await fetch("/api/activities", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (activitiesResponse.ok) {
+      const activitiesData = await activitiesResponse.json();
+      setActivities(activitiesData.activities);
+    }
+
+    setActivitiesLoading(false);
+
+    const skillsResponse = await fetch("/api/skills", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (skillsResponse.ok) {
+      const skillsData = await skillsResponse.json();
+      setSkills(skillsData.skills);
+    }
+
+    setSkillsLoading(false);
+
+    const questsResponse = await fetch("/api/quests", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (questsResponse.ok) {
+      const questsData = await questsResponse.json();
+      setQuests(questsData.quests);
+    }
+
+    setQuestsLoading(false);
+
+    const xpResponse = await fetch("/api/xp", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (xpResponse.ok) {
+      const xpData = await xpResponse.json();
+      setXpData(xpData);
+    }
+
+    setXpLoading(false);
+
+    const statsResponse = await fetch("/api/stats", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (statsResponse.ok) {
+      const statsData = await statsResponse.json();
+      setStats(statsData);
+    }
+
+    setStatsLoading(false);
+  }
+
   async function handleStravaSync() {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session) {
-    router.push("/login");
-    return;
-  }
-  const badgesResponse = await fetch("/api/badges", {
-  headers: {
-    Authorization: `Bearer ${session.access_token}`,
-  },
-});
-
-if (badgesResponse.ok) {
-  const badgesData = await badgesResponse.json();
-  setBadges(badgesData.badges);
-}
-
-setBadgesLoading(false);
-const activitiesResponse = await fetch("/api/activities", {
-  headers: {
-    Authorization: `Bearer ${session.access_token}`,
-  },
-});
-
-const skillsResponse = await fetch("/api/skills", {
-  headers: {
-    Authorization: `Bearer ${session.access_token}`,
-  },
-});
-
-if (skillsResponse.ok) {
-  const skillsData = await skillsResponse.json();
-  setSkills(skillsData.skills);
-}
-
-setSkillsLoading(false);
-const questsResponse = await fetch("/api/quests", {
-  headers: {
-    Authorization: `Bearer ${session.access_token}`,
-  },
-});
-
-if (questsResponse.ok) {
-  const questsData = await questsResponse.json();
-  setQuests(questsData.quests);
-}
-
-setQuestsLoading(false);
-
-if (activitiesResponse.ok) {
-  const activitiesData = await activitiesResponse.json();
-
-  setActivities(activitiesData.activities);
-}
-
-setActivitiesLoading(false);
-const xpResponse = await fetch("/api/xp", {
-  headers: {
-    Authorization: `Bearer ${session.access_token}`,
-  },
-});
-
-if (xpResponse.ok) {
-  const xpData = await xpResponse.json();
-
-  console.log("XP data:", xpData);
-
-  setXpData(xpData);
-}
-
-setXpLoading(false);
-const statsResponse = await fetch("/api/stats", {
-  headers: {
-    Authorization: `Bearer ${session.access_token}`,
-  },
-});
-
-if (statsResponse.ok) {
-  const statsData = await statsResponse.json();
-
-  setStats(statsData);
-}
-
-setStatsLoading(false);
-  const response = await fetch("/api/strava/sync", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${session.access_token}`,
-    },
-  });
-
-  const data = await response.json();
-
-  console.log("Strava sync:", data);
-
-  if (!response.ok) {
-    alert(data.error || "Synchroniseren mislukt.");
-    return;
-  }
-
-  alert(`Synchronisatie klaar! ${data.imported} activiteiten verwerkt.`);
-}
-async function handleLogout() {
-  await supabase.auth.signOut();
-  router.push("/login");
-}
-  useEffect(() => {
-  async function checkUser() {
     const {
       data: { session },
     } = await supabase.auth.getSession();
@@ -141,62 +111,100 @@ async function handleLogout() {
       router.push("/login");
       return;
     }
-    const profileResponse = await fetch("/api/strava/profile", {
-  headers: {
-    Authorization: `Bearer ${session.access_token}`,
-  },
-});
-const activitiesResponse = await fetch("/api/strava/activities", {
-  headers: {
-    Authorization: `Bearer ${session.access_token}`,
-  },
-});
 
-if (activitiesResponse.ok) {
-  const activitiesData = await activitiesResponse.json();
+    const response = await fetch("/api/strava/sync", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
+    });
 
-  console.log("Strava activiteiten:", activitiesData.activities);
-}
+    const data = await response.json();
 
-if (profileResponse.ok) {
-  const profileData = await profileResponse.json();
-
-  console.log("Strava profiel:", profileData.athlete);
-
-  setStravaAthlete(profileData.athlete);
-}
-
-    if (session.user.user_metadata.full_name) {
-      setUserName(session.user.user_metadata.full_name);
+    if (!response.ok) {
+      alert(data.error || "Synchroniseren mislukt.");
+      return;
     }
 
-    const params = new URLSearchParams(window.location.search);
-    const stravaCode = params.get("strava_code");
-    const stravaState = params.get("strava_state");
+    await loadDashboardData(session.access_token);
 
-    if (stravaCode) {
-      const response = await fetch("/api/strava/connect", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          code: stravaCode,
-          state: stravaState,
-        }),
-      });
-
-      if (response.ok) {
-        window.history.replaceState({}, "", "/dashboard");
-      } else {
-        console.error("Strava koppelen mislukt:", await response.text());
-      }
-    }
+    alert(`Synchronisatie klaar! ${data.imported} activiteiten verwerkt.`);
   }
 
-  checkUser();
-}, [router]);
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    router.push("/login");
+  }
+
+  useEffect(() => {
+    async function checkUser() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        router.push("/login");
+        return;
+      }
+
+      if (session.user.user_metadata.full_name) {
+        setUserName(session.user.user_metadata.full_name);
+      }
+
+      const params = new URLSearchParams(window.location.search);
+      const stravaCode = params.get("strava_code");
+      const stravaState = params.get("strava_state");
+
+      if (stravaCode) {
+        const connectResponse = await fetch("/api/strava/connect", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            code: stravaCode,
+            state: stravaState,
+          }),
+        });
+
+        if (connectResponse.ok) {
+          window.history.replaceState({}, "", "/dashboard");
+        } else {
+          console.error("Strava koppelen mislukt:", await connectResponse.text());
+        }
+      }
+
+      const profileResponse = await fetch("/api/strava/profile", {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (profileResponse.ok) {
+        const profileData = await profileResponse.json();
+        setStravaAthlete(profileData.athlete);
+
+        const syncResponse = await fetch("/api/strava/sync", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        });
+
+        if (!syncResponse.ok) {
+          console.error(
+            "Automatische Strava-sync mislukt:",
+            await syncResponse.text()
+          );
+        }
+      }
+
+      await loadDashboardData(session.access_token);
+    }
+
+    checkUser();
+  }, [router]);
 
           {/* Badges */}
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
