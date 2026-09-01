@@ -41,6 +41,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const startAddress = typeof body.startAddress === "string" ? body.startAddress.trim() : "";
     const distanceKm = Number(body.distanceKm);
+    const desiredNewKm = body.desiredNewKm !== undefined && body.desiredNewKm !== ""
+      ? Number(body.desiredNewKm)
+      : null;
+    const direction = typeof body.direction === "string" ? body.direction : "";
 
     if (!startAddress) {
       return NextResponse.json(
@@ -55,6 +59,33 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    if (desiredNewKm !== null && (Number.isNaN(desiredNewKm) || desiredNewKm < 0)) {
+      return NextResponse.json(
+        { error: "Geef een geldig aantal nieuwe km op." },
+        { status: 400 }
+      );
+    }
+
+    const DIRECTION_BEARINGS: Record<string, number> = {
+      N: 0,
+      NO: 45,
+      O: 90,
+      ZO: 135,
+      Z: 180,
+      ZW: 225,
+      W: 270,
+      NW: 315,
+    };
+
+    const targetBearingDeg = DIRECTION_BEARINGS[direction];
+
+    // Neutral default is roughly half the route being "new"; scale the novelty
+    // weight up or down from there based on what the user asked for.
+    const noveltyWeight =
+      desiredNewKm !== null
+        ? Math.min(2000, Math.max(50, 400 * (desiredNewKm / (distanceKm * 0.5))))
+        : 400;
 
     const supabaseAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -151,7 +182,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = generateLoopRoute(graph, startNode.id, distanceKm * 1000);
+    const result = generateLoopRoute(graph, startNode.id, distanceKm * 1000, {
+      noveltyWeight,
+      targetBearingDeg,
+    });
 
     if (result.points.length < 2) {
       return NextResponse.json(

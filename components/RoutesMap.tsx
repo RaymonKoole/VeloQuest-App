@@ -12,6 +12,7 @@ import {
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { decodePolyline } from "@/lib/routes/decodePolyline";
+import { haversineDistanceMeters } from "@/lib/routes/haversine";
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -49,8 +50,33 @@ function formatDate(dateString: string | null) {
   });
 }
 
-function clusterKey(activity: RouteActivity) {
-  return `${activity.start_lat.toFixed(4)},${activity.start_lng.toFixed(4)}`;
+// Rides starting a few meters apart (e.g. same street, different exact GPS
+// fix) should still cluster together, so group by proximity rather than by
+// snapping to a fixed grid (which has hard boundary artifacts).
+const CLUSTER_RADIUS_M = 40;
+
+function clusterActivitiesByProximity(activities: RouteActivity[]) {
+  const clusters: RouteActivity[][] = [];
+
+  for (const activity of activities) {
+    const match = clusters.find(
+      (cluster) =>
+        haversineDistanceMeters(
+          cluster[0].start_lat,
+          cluster[0].start_lng,
+          activity.start_lat,
+          activity.start_lng
+        ) <= CLUSTER_RADIUS_M
+    );
+
+    if (match) {
+      match.push(activity);
+    } else {
+      clusters.push([activity]);
+    }
+  }
+
+  return clusters;
 }
 
 function clusterIcon(count: number) {
@@ -111,22 +137,10 @@ export default function RoutesMap({
   activities: RouteActivity[];
   generatedRoute?: [number, number][];
 }) {
-  const clusters = useMemo(() => {
-    const grouped = new Map<string, RouteActivity[]>();
-
-    for (const activity of activities) {
-      const key = clusterKey(activity);
-      const existing = grouped.get(key);
-
-      if (existing) {
-        existing.push(activity);
-      } else {
-        grouped.set(key, [activity]);
-      }
-    }
-
-    return Array.from(grouped.values());
-  }, [activities]);
+  const clusters = useMemo(
+    () => clusterActivitiesByProximity(activities),
+    [activities]
+  );
 
   const center: [number, number] =
     activities.length > 0
@@ -211,7 +225,8 @@ export default function RoutesMap({
 
         return (
           <Fragment key={`line-${activity.id}`}>
-            {/* Donkere "casing" eronder zodat de lijn opvalt tegen elke ondergrond (ook rode wegen) */}
+            {/* Donkere "casing" eronder zodat de lijn opvalt tegen elke ondergrond (ook rode wegen);
+                ook het klikbare gebied (breder dan de zichtbare lijn, makkelijker te raken) */}
             <Polyline
               positions={polylinePoints}
               pathOptions={{
@@ -220,6 +235,9 @@ export default function RoutesMap({
                 opacity: isDimmed ? 0.12 : 0.85,
                 lineCap: "round",
                 lineJoin: "round",
+              }}
+              eventHandlers={{
+                click: () => selectCluster([activity]),
               }}
             />
 
@@ -232,6 +250,9 @@ export default function RoutesMap({
                 lineCap: "round",
                 lineJoin: "round",
               }}
+              eventHandlers={{
+                click: () => selectCluster([activity]),
+              }}
             />
           </Fragment>
         );
@@ -242,14 +263,14 @@ export default function RoutesMap({
 
         return (
           <Marker
-            key={clusterKey(first)}
+            key={first.id}
             position={[first.start_lat, first.start_lng]}
             icon={clusterIcon(clusterActivities.length)}
             eventHandlers={{
               click: () => selectCluster(clusterActivities),
             }}
           >
-            <Popup maxHeight={240}>
+            <Popup maxHeight={220} autoPanPadding={[24, 24]} autoPanPaddingTopLeft={[24, 70]}>
               <div className="min-w-[200px]">
                 {clusterActivities.length > 1 && (
                   <p className="mb-2 text-xs font-semibold text-neutral-500">

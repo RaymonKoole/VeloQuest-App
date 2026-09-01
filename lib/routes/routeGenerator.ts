@@ -106,6 +106,74 @@ export function markRiddenEdges(
   }
 }
 
+/** Compact binary min-heap keyed by distance, used by shortestPath(). */
+class MinHeap {
+  private items: [number, number][] = [];
+
+  push(distance: number, nodeId: number) {
+    this.items.push([distance, nodeId]);
+    let index = this.items.length - 1;
+
+    while (index > 0) {
+      const parent = (index - 1) >> 1;
+
+      if (this.items[parent][0] <= this.items[index][0]) {
+        break;
+      }
+
+      [this.items[parent], this.items[index]] = [
+        this.items[index],
+        this.items[parent],
+      ];
+      index = parent;
+    }
+  }
+
+  pop(): [number, number] | undefined {
+    if (this.items.length === 0) {
+      return undefined;
+    }
+
+    const top = this.items[0];
+    const last = this.items.pop()!;
+
+    if (this.items.length > 0) {
+      this.items[0] = last;
+      let index = 0;
+
+      while (true) {
+        const left = index * 2 + 1;
+        const right = index * 2 + 2;
+        let smallest = index;
+
+        if (left < this.items.length && this.items[left][0] < this.items[smallest][0]) {
+          smallest = left;
+        }
+
+        if (right < this.items.length && this.items[right][0] < this.items[smallest][0]) {
+          smallest = right;
+        }
+
+        if (smallest === index) {
+          break;
+        }
+
+        [this.items[smallest], this.items[index]] = [
+          this.items[index],
+          this.items[smallest],
+        ];
+        index = smallest;
+      }
+    }
+
+    return top;
+  }
+
+  get size() {
+    return this.items.length;
+  }
+}
+
 export function shortestPath(
   graph: RoadGraph,
   fromId: number,
@@ -114,25 +182,27 @@ export function shortestPath(
   const dist = new Map<number, number>();
   const prev = new Map<number, number>();
   const visited = new Set<number>();
+  const heap = new MinHeap();
 
   dist.set(fromId, 0);
+  heap.push(0, fromId);
 
-  while (true) {
-    let currentId: number | null = null;
-    let currentDist = Infinity;
+  while (heap.size > 0) {
+    const [d, currentId] = heap.pop()!;
 
-    for (const [id, d] of dist.entries()) {
-      if (!visited.has(id) && d < currentDist) {
-        currentDist = d;
-        currentId = id;
-      }
+    if (visited.has(currentId)) {
+      continue;
     }
 
-    if (currentId === null || currentId === toId) {
-      break;
+    if (d > (dist.get(currentId) ?? Infinity)) {
+      continue;
     }
 
     visited.add(currentId);
+
+    if (currentId === toId) {
+      break;
+    }
 
     const edges = graph.adjacency.get(currentId) || [];
 
@@ -141,11 +211,12 @@ export function shortestPath(
         continue;
       }
 
-      const newDist = currentDist + edge.distanceM;
+      const newDist = d + edge.distanceM;
 
       if (newDist < (dist.get(edge.to) ?? Infinity)) {
         dist.set(edge.to, newDist);
         prev.set(edge.to, currentId);
+        heap.push(newDist, edge.to);
       }
     }
   }
@@ -188,17 +259,50 @@ function pathDistanceM(graph: RoadGraph, path: number[]) {
   return distance;
 }
 
+function bearingDegrees(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const toDeg = (rad: number) => (rad * 180) / Math.PI;
+
+  const dLng = toRad(lng2 - lng1);
+  const y = Math.sin(dLng) * Math.cos(toRad(lat2));
+  const x =
+    Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) -
+    Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(dLng);
+
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+}
+
+/** 1 when bearings match exactly, -1 when opposite. */
+function bearingAlignment(bearingDeg: number, targetBearingDeg: number) {
+  const diff = Math.abs(bearingDeg - targetBearingDeg) % 360;
+  const angleDiff = diff > 180 ? 360 - diff : diff;
+
+  return Math.cos((angleDiff * Math.PI) / 180);
+}
+
+export type GenerateRouteOptions = {
+  /** Higher = more strongly prefers roads not yet ridden. Default 400. */
+  noveltyWeight?: number;
+  /** Compass bearing (0-360, 0 = north) to head towards during the outbound leg. */
+  targetBearingDeg?: number;
+};
+
 export function generateLoopRoute(
   graph: RoadGraph,
   startNodeId: number,
-  targetDistanceM: number
+  targetDistanceM: number,
+  options: GenerateRouteOptions = {}
 ) {
+  const noveltyWeight = options.noveltyWeight ?? 400;
+  const targetBearingDeg = options.targetBearingDeg;
+
   const path: number[] = [startNodeId];
   let current = startNodeId;
   let traveled = 0;
 
   const usedEdgeCount = new Map<string, number>();
   const maxSteps = 3000;
+  let stepsSinceClosingAttempt = 0;
 
   const start = graph.nodes.get(startNodeId);
 
@@ -228,20 +332,44 @@ export function generateLoopRoute(
     }
 
     const progress = traveled / targetDistanceM;
+    const fromNode = graph.nodes.get(current);
 
     const scored = neighbors.map((edge) => {
       const edgeKey = `${current}-${edge.to}`;
       const timesUsed = usedEdgeCount.get(edgeKey) || 0;
-      const noveltyBonus = edge.ridden ? 0 : 400;
+      const noveltyBonus = edge.ridden ? 0 : noveltyWeight;
       const repeatPenalty = timesUsed * 600;
       const distStart = distanceToStart(edge.to);
       const homeBias =
         progress > 0.55 ? -distStart * (progress - 0.5) * 2 : 0;
+
+      let directionBonus = 0;
+
+      if (targetBearingDeg !== undefined && progress < 0.5 && fromNode) {
+        const toNode = graph.nodes.get(edge.to);
+
+        if (toNode) {
+          const bearing = bearingDegrees(
+            fromNode.lat,
+            fromNode.lng,
+            toNode.lat,
+            toNode.lng
+          );
+
+          directionBonus = bearingAlignment(bearing, targetBearingDeg) * 350;
+        }
+      }
+
       const randomness = Math.random() * 250;
 
       return {
         edge,
-        score: noveltyBonus + homeBias + randomness - repeatPenalty,
+        score:
+          noveltyBonus +
+          homeBias +
+          directionBonus +
+          randomness -
+          repeatPenalty,
       };
     });
 
@@ -254,8 +382,12 @@ export function generateLoopRoute(
     path.push(chosen.to);
     traveled += chosen.distanceM;
     current = chosen.to;
+    stepsSinceClosingAttempt++;
 
-    if (traveled > targetDistanceM * 0.65) {
+    // Only attempt the (relatively expensive) closing shortest-path every few
+    // steps once we're in range, instead of on every single step.
+    if (traveled > targetDistanceM * 0.9 && stepsSinceClosingAttempt >= 3) {
+      stepsSinceClosingAttempt = 0;
       const distStart = distanceToStart(current);
 
       if (distStart < targetDistanceM - traveled) {
