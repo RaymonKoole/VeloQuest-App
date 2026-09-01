@@ -204,8 +204,13 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Route generatie error:", error);
 
+    const detail =
+      error instanceof Error && error.message
+        ? error.message
+        : "Onbekende fout.";
+
     return NextResponse.json(
-      { error: "Onbekende fout bij het genereren van een route." },
+      { error: `Route genereren is mislukt: ${detail}` },
       { status: 500 }
     );
   }

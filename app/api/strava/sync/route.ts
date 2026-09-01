@@ -5,6 +5,16 @@ import { checkBadges } from "@/lib/badges/checkBadges";
 import { calculateSkills } from "@/lib/skills/calculateSkills";
 import { calculateQuests } from "@/lib/quests/calculateQuests";
 import { getValidStravaAccessToken } from "@/lib/strava/getAccessToken";
+import { fetchActivityDetail } from "@/lib/strava/fetchActivityDetail";
+import { fetchActivityStreams } from "@/lib/strava/fetchActivityStreams";
+
+// Bij een eerste sync na deze update kan de "hele rithistorie" als nieuw gelden.
+// Verwerk daarom per sync-aanroep maar een beperkt aantal ritten met extra
+// Strava-aanroepen (detail + streams), de rest volgt geleidelijk bij volgende syncs.
+const MAX_ENRICH_PER_SYNC = 8;
+const ENRICH_DELAY_MS = 300;
+
+export const maxDuration = 30;
 export async function POST(request: NextRequest) {
   try {
     const authorization = request.headers.get("authorization");
@@ -97,6 +107,15 @@ export async function POST(request: NextRequest) {
       page++;
     }
 
+    const { data: existingActivityRows } = await supabaseAdmin
+      .from("strava_activities")
+      .select("strava_activity_id")
+      .eq("user_id", user.id);
+
+    const existingStravaActivityIds = new Set(
+      (existingActivityRows || []).map((row) => row.strava_activity_id)
+    );
+
     const rows = allActivities.map((activity) => ({
       user_id: user.id,
       strava_activity_id: activity.id,
@@ -125,6 +144,8 @@ const cyclingActivities = rows.filter(
     activity.activity_type === "Ride" ||
     activity.activity_type === "GravelRide"
 );
+
+const newRideDbIds: { dbId: number; stravaActivityId: number }[] = [];
 
 for (const activity of cyclingActivities) {
   const xp = calculateActivityXp(activity);
@@ -167,7 +188,89 @@ for (const activity of cyclingActivities) {
       xpError
     );
   }
+
+  if (!existingStravaActivityIds.has(activity.strava_activity_id)) {
+    newRideDbIds.push({
+      dbId: savedActivity.id,
+      stravaActivityId: activity.strava_activity_id,
+    });
+  }
 }
+
+// Verrijk alleen een beperkt aantal nieuwe ritten per sync met extra
+// Strava-aanroepen (detail + streams) — voorkomt een piek aan aanvragen
+// bij gebruikers met een grote bestaande rithistorie.
+for (const { dbId, stravaActivityId } of newRideDbIds.slice(
+  0,
+  MAX_ENRICH_PER_SYNC
+)) {
+  try {
+    const detail = await fetchActivityDetail(stravaActivityId, stravaAccessToken);
+
+    await supabaseAdmin
+      .from("strava_activities")
+      .update({
+        kudos_count: detail.kudos_count ?? null,
+        calories: detail.calories ?? null,
+      })
+      .eq("id", dbId);
+
+    if (Array.isArray(detail.segment_efforts) && detail.segment_efforts.length > 0) {
+      const effortRows = detail.segment_efforts
+        .filter((effort: any) => effort.segment?.id)
+        .map((effort: any) => ({
+          activity_id: dbId,
+          user_id: user.id,
+          segment_id: effort.segment.id,
+          segment_name: effort.segment?.name ?? null,
+          elapsed_time: effort.elapsed_time ?? null,
+          pr_rank: effort.pr_rank ?? null,
+          kom_rank: effort.kom_rank ?? null,
+        }));
+
+      if (effortRows.length > 0) {
+        await supabaseAdmin
+          .from("activity_segment_efforts")
+          .upsert(effortRows, { onConflict: "activity_id,segment_id" });
+      }
+    }
+  } catch (detailError) {
+    console.error(
+      `Activiteitdetail ophalen mislukt voor ${stravaActivityId}:`,
+      detailError
+    );
+  }
+
+  try {
+    const streams = await fetchActivityStreams(stravaActivityId, stravaAccessToken);
+
+    if (streams) {
+      await supabaseAdmin.from("activity_streams").upsert(
+        {
+          activity_id: dbId,
+          user_id: user.id,
+          time: streams.time?.data ?? null,
+          latlng: streams.latlng?.data ?? null,
+          altitude: streams.altitude?.data ?? null,
+          velocity_smooth: streams.velocity_smooth?.data ?? null,
+          heartrate: streams.heartrate?.data ?? null,
+          cadence: streams.cadence?.data ?? null,
+          watts: streams.watts?.data ?? null,
+          moving: streams.moving?.data ?? null,
+        },
+        { onConflict: "activity_id" }
+      );
+    }
+  } catch (streamError) {
+    console.error(
+      `Streams ophalen mislukt voor ${stravaActivityId}:`,
+      streamError
+    );
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, ENRICH_DELAY_MS));
+}
+
       if (upsertError) {
         console.error("Strava activities database error:", upsertError);
 
