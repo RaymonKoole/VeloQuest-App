@@ -1,4 +1,5 @@
 import { haversineDistanceMeters } from "@/lib/routes/haversine";
+import { queryOverpass } from "@/lib/overpass/queryOverpass";
 
 const POI_TYPES = ["cafe", "restaurant", "fast_food", "bar", "pub"].join("|");
 
@@ -9,32 +10,12 @@ export async function findNearbyPoi(
 ) {
   const query = `[out:json][timeout:15];(node["amenity"~"^(${POI_TYPES})$"](around:${radiusMeters},${lat},${lng}););out body;`;
 
-  let response: Response;
-
-  try {
-    response = await fetch("https://overpass-api.de/api/interpreter", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: `data=${encodeURIComponent(query)}`,
-      signal: AbortSignal.timeout(15000),
-    });
-  } catch (fetchError) {
-    console.error("Overpass POI-lookup fetch mislukt:", fetchError);
-    return null;
-  }
-
-  if (!response.ok) {
-    return null;
-  }
-
   let data: any;
 
   try {
-    data = await response.json();
-  } catch (parseError) {
-    console.error("Overpass POI-lookup gaf geen geldige JSON terug:", parseError);
+    data = await queryOverpass(query, 15000);
+  } catch (overpassError) {
+    console.error("Overpass POI-lookup mislukt:", overpassError);
     return null;
   }
 

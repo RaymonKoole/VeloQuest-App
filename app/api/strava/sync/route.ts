@@ -107,15 +107,6 @@ export async function POST(request: NextRequest) {
       page++;
     }
 
-    const { data: existingActivityRows } = await supabaseAdmin
-      .from("strava_activities")
-      .select("strava_activity_id")
-      .eq("user_id", user.id);
-
-    const existingStravaActivityIds = new Set(
-      (existingActivityRows || []).map((row) => row.strava_activity_id)
-    );
-
     const rows = allActivities.map((activity) => ({
       user_id: user.id,
       strava_activity_id: activity.id,
@@ -133,6 +124,9 @@ export async function POST(request: NextRequest) {
       summary_polyline: activity.map?.summary_polyline ?? null,
     }));
 
+    let enrichedThisSync = 0;
+    let remainingToEnrich = 0;
+
     if (rows.length > 0) {
       const { error: upsertError } = await supabaseAdmin
         .from("strava_activities")
@@ -145,7 +139,7 @@ const cyclingActivities = rows.filter(
     activity.activity_type === "GravelRide"
 );
 
-const newRideDbIds: { dbId: number; stravaActivityId: number }[] = [];
+const savedActivities: { dbId: number; stravaActivityId: number }[] = [];
 
 for (const activity of cyclingActivities) {
   const xp = calculateActivityXp(activity);
@@ -189,18 +183,43 @@ for (const activity of cyclingActivities) {
     );
   }
 
-  if (!existingStravaActivityIds.has(activity.strava_activity_id)) {
-    newRideDbIds.push({
-      dbId: savedActivity.id,
-      stravaActivityId: activity.strava_activity_id,
-    });
-  }
+  savedActivities.push({
+    dbId: savedActivity.id,
+    stravaActivityId: activity.strava_activity_id,
+  });
 }
 
-// Verrijk alleen een beperkt aantal nieuwe ritten per sync met extra
+// Bepaal welke ritten nog verrijkt moeten worden (streams/segments/kudos):
+// gebaseerd op het ontbreken van een activity_streams-rij, niet op "nieuw
+// t.o.v. de vorige sync". Zo blijven oude ritten in de wachtrij staan totdat
+// ze daadwerkelijk verrijkt zijn, in plaats van na één sync permanent
+// overgeslagen te worden.
+const savedDbIds = savedActivities.map((activity) => activity.dbId);
+
+const { data: enrichedStreamRows } =
+  savedDbIds.length > 0
+    ? await supabaseAdmin
+        .from("activity_streams")
+        .select("activity_id")
+        .in("activity_id", savedDbIds)
+    : { data: [] as { activity_id: number }[] };
+
+const enrichedDbIds = new Set(
+  (enrichedStreamRows || []).map((row) => row.activity_id)
+);
+
+const needsEnrichment = savedActivities.filter(
+  (activity) => !enrichedDbIds.has(activity.dbId)
+);
+
+enrichedThisSync = Math.min(needsEnrichment.length, MAX_ENRICH_PER_SYNC);
+remainingToEnrich = Math.max(needsEnrichment.length - MAX_ENRICH_PER_SYNC, 0);
+
+// Verrijk per sync-aanroep maar een beperkt aantal ritten met extra
 // Strava-aanroepen (detail + streams) — voorkomt een piek aan aanvragen
-// bij gebruikers met een grote bestaande rithistorie.
-for (const { dbId, stravaActivityId } of newRideDbIds.slice(
+// bij gebruikers met een grote bestaande rithistorie. De rest volgt bij
+// volgende syncs, inclusief oude ritten.
+for (const { dbId, stravaActivityId } of needsEnrichment.slice(
   0,
   MAX_ENRICH_PER_SYNC
 )) {
@@ -244,23 +263,26 @@ for (const { dbId, stravaActivityId } of newRideDbIds.slice(
   try {
     const streams = await fetchActivityStreams(stravaActivityId, stravaAccessToken);
 
-    if (streams) {
-      await supabaseAdmin.from("activity_streams").upsert(
-        {
-          activity_id: dbId,
-          user_id: user.id,
-          time: streams.time?.data ?? null,
-          latlng: streams.latlng?.data ?? null,
-          altitude: streams.altitude?.data ?? null,
-          velocity_smooth: streams.velocity_smooth?.data ?? null,
-          heartrate: streams.heartrate?.data ?? null,
-          cadence: streams.cadence?.data ?? null,
-          watts: streams.watts?.data ?? null,
-          moving: streams.moving?.data ?? null,
-        },
-        { onConflict: "activity_id" }
-      );
-    }
+    // Ook wanneer Strava geen streams heeft voor deze activiteit (streams is
+    // dan null, bv. handmatig ingevoerde ritten) slaan we een (lege) rij op.
+    // Zo telt deze activiteit als "verwerkt" en komt hij niet iedere sync
+    // opnieuw in de wachtrij terecht, wat anders ten koste zou gaan van de
+    // ritten die nog wél echt verrijkt moeten worden.
+    await supabaseAdmin.from("activity_streams").upsert(
+      {
+        activity_id: dbId,
+        user_id: user.id,
+        time: streams?.time?.data ?? null,
+        latlng: streams?.latlng?.data ?? null,
+        altitude: streams?.altitude?.data ?? null,
+        velocity_smooth: streams?.velocity_smooth?.data ?? null,
+        heartrate: streams?.heartrate?.data ?? null,
+        cadence: streams?.cadence?.data ?? null,
+        watts: streams?.watts?.data ?? null,
+        moving: streams?.moving?.data ?? null,
+      },
+      { onConflict: "activity_id" }
+    );
   } catch (streamError) {
     console.error(
       `Streams ophalen mislukt voor ${stravaActivityId}:`,
@@ -286,6 +308,8 @@ await calculateQuests(user.id);
     return NextResponse.json({
       success: true,
       imported: rows.length,
+      enrichedThisSync,
+      remainingToEnrich,
     });
   } catch (error) {
     console.error("Strava sync error:", error);
