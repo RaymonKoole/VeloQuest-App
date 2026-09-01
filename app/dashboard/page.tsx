@@ -7,6 +7,14 @@ import { supabase } from "@/lib/supabase";
 import { getSkillProgress } from "@/lib/progression/skillLevel";
 import Navbar from "@/components/Navbar";
 
+function Skeleton({ className = "" }: { className?: string }) {
+  return (
+    <span
+      className={`inline-block animate-pulse rounded-lg bg-neutral-800 ${className}`}
+    />
+  );
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [userName, setUserName] = useState("");
@@ -24,84 +32,58 @@ export default function DashboardPage() {
   const [questsLoading, setQuestsLoading] = useState(true);
   const [xpData, setXpData] = useState<any>(null);
   const [xpLoading, setXpLoading] = useState(true);
-  async function loadDashboardData(accessToken: string) {
-    const badgesResponse = await fetch("/api/badges", {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
+  function loadDashboardData(accessToken: string) {
+    const headers = { Authorization: `Bearer ${accessToken}` };
+
+    const badges = fetch("/api/badges", { headers }).then(async (response) => {
+      if (response.ok) {
+        setBadges((await response.json()).badges);
+      }
+
+      setBadgesLoading(false);
     });
 
-    if (badgesResponse.ok) {
-      const badgesData = await badgesResponse.json();
-      setBadges(badgesData.badges);
-    }
+    const activities = fetch("/api/activities", { headers }).then(async (response) => {
+      if (response.ok) {
+        setActivities((await response.json()).activities);
+      }
 
-    setBadgesLoading(false);
-
-    const activitiesResponse = await fetch("/api/activities", {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
+      setActivitiesLoading(false);
     });
 
-    if (activitiesResponse.ok) {
-      const activitiesData = await activitiesResponse.json();
-      setActivities(activitiesData.activities);
-    }
+    const skills = fetch("/api/skills", { headers }).then(async (response) => {
+      if (response.ok) {
+        setSkills((await response.json()).skills);
+      }
 
-    setActivitiesLoading(false);
-
-    const skillsResponse = await fetch("/api/skills", {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
+      setSkillsLoading(false);
     });
 
-    if (skillsResponse.ok) {
-      const skillsData = await skillsResponse.json();
-      setSkills(skillsData.skills);
-    }
+    const quests = fetch("/api/quests", { headers }).then(async (response) => {
+      if (response.ok) {
+        setQuests((await response.json()).quests);
+      }
 
-    setSkillsLoading(false);
-
-    const questsResponse = await fetch("/api/quests", {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
+      setQuestsLoading(false);
     });
 
-    if (questsResponse.ok) {
-      const questsData = await questsResponse.json();
-      setQuests(questsData.quests);
-    }
+    const xp = fetch("/api/xp", { headers }).then(async (response) => {
+      if (response.ok) {
+        setXpData(await response.json());
+      }
 
-    setQuestsLoading(false);
-
-    const xpResponse = await fetch("/api/xp", {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
+      setXpLoading(false);
     });
 
-    if (xpResponse.ok) {
-      const xpData = await xpResponse.json();
-      setXpData(xpData);
-    }
+    const stats = fetch("/api/stats", { headers }).then(async (response) => {
+      if (response.ok) {
+        setStats(await response.json());
+      }
 
-    setXpLoading(false);
-
-    const statsResponse = await fetch("/api/stats", {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
+      setStatsLoading(false);
     });
 
-    if (statsResponse.ok) {
-      const statsData = await statsResponse.json();
-      setStats(statsData);
-    }
-
-    setStatsLoading(false);
+    return Promise.all([badges, activities, skills, quests, xp, stats]);
   }
 
   async function handleStravaSync() {
@@ -177,6 +159,9 @@ export default function DashboardPage() {
         }
       }
 
+      // Toon meteen de laatst bekende data; wacht niet op Strava.
+      const dashboardDataLoaded = loadDashboardData(session.access_token);
+
       const profileResponse = await fetch("/api/strava/profile", {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
@@ -187,22 +172,25 @@ export default function DashboardPage() {
         const profileData = await profileResponse.json();
         setStravaAthlete(profileData.athlete);
 
-        const syncResponse = await fetch("/api/strava/sync", {
+        // Sync op de achtergrond; ververs de dashboard-data pas zodra hij klaar is.
+        fetch("/api/strava/sync", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${session.access_token}`,
           },
+        }).then(async (syncResponse) => {
+          if (syncResponse.ok) {
+            await loadDashboardData(session.access_token);
+          } else {
+            console.error(
+              "Automatische Strava-sync mislukt:",
+              await syncResponse.text()
+            );
+          }
         });
-
-        if (!syncResponse.ok) {
-          console.error(
-            "Automatische Strava-sync mislukt:",
-            await syncResponse.text()
-          );
-        }
       }
 
-      await loadDashboardData(session.access_token);
+      await dashboardDataLoaded;
     }
 
     checkUser();
@@ -288,9 +276,11 @@ export default function DashboardPage() {
         {/* XP */}
         <div className="mt-6 rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
   {xpLoading ? (
-    <p className="text-neutral-400">
-      XP laden...
-    </p>
+    <div>
+      <Skeleton className="h-4 w-24" />
+      <Skeleton className="mt-2 h-8 w-40" />
+      <Skeleton className="mt-5 h-3 w-full" />
+    </div>
   ) : xpData ? (
     <>
       <div className="flex items-end justify-between">
@@ -342,9 +332,11 @@ export default function DashboardPage() {
     </p>
 
     <p className="mt-2 text-3xl font-bold">
-      {statsLoading
-        ? "..."
-        : `${((stats?.totalDistance || 0) / 1000).toFixed(1)} km`}
+      {statsLoading ? (
+        <Skeleton className="h-8 w-20" />
+      ) : (
+        `${((stats?.totalDistance || 0) / 1000).toFixed(1)} km`
+      )}
     </p>
 
     <p className="mt-2 text-sm text-neutral-500">
@@ -358,9 +350,11 @@ export default function DashboardPage() {
     </p>
 
     <p className="mt-2 text-3xl font-bold">
-      {statsLoading
-        ? "..."
-        : `${Math.round(stats?.totalElevation || 0).toLocaleString("nl-NL")} m`}
+      {statsLoading ? (
+        <Skeleton className="h-8 w-20" />
+      ) : (
+        `${Math.round(stats?.totalElevation || 0).toLocaleString("nl-NL")} m`
+      )}
     </p>
 
     <p className="mt-2 text-sm text-neutral-500">
@@ -374,9 +368,11 @@ export default function DashboardPage() {
     </p>
 
     <p className="mt-2 text-3xl font-bold">
-      {statsLoading
-        ? "..."
-        : (stats?.totalActivities || 0).toLocaleString("nl-NL")}
+      {statsLoading ? (
+        <Skeleton className="h-8 w-12" />
+      ) : (
+        (stats?.totalActivities || 0).toLocaleString("nl-NL")
+      )}
     </p>
 
     <p className="mt-2 text-sm text-neutral-500">
@@ -390,9 +386,11 @@ export default function DashboardPage() {
     </p>
 
     <p className="mt-2 text-3xl font-bold">
-      {statsLoading
-        ? "..."
-        : `${Math.floor((stats?.totalMovingTime || 0) / 3600)} uur`}
+      {statsLoading ? (
+        <Skeleton className="h-8 w-16" />
+      ) : (
+        `${Math.floor((stats?.totalMovingTime || 0) / 3600)} uur`
+      )}
     </p>
 
     <p className="mt-2 text-sm text-neutral-500">
@@ -417,9 +415,11 @@ export default function DashboardPage() {
             </div>
 
             {skillsLoading ? (
-              <p className="mt-4 text-sm text-neutral-400">
-                Laden...
-              </p>
+              <div className="mt-4 space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-2/3" />
+              </div>
             ) : skills.length === 0 ? (
               <p className="mt-4 text-sm text-neutral-400">
                 Nog geen skills beschikbaar.
@@ -463,9 +463,7 @@ export default function DashboardPage() {
             </div>
 
             {questsLoading ? (
-              <p className="mt-4 text-sm text-neutral-400">
-                Laden...
-              </p>
+              <Skeleton className="mt-4 h-9 w-16" />
             ) : (
               <>
                 <p className="mt-4 text-3xl font-bold">
@@ -495,9 +493,7 @@ export default function DashboardPage() {
             </div>
 
             {badgesLoading ? (
-              <p className="mt-4 text-sm text-neutral-400">
-                Laden...
-              </p>
+              <Skeleton className="mt-4 h-9 w-16" />
             ) : (
               <>
                 <p className="mt-4 text-3xl font-bold">
@@ -528,9 +524,10 @@ export default function DashboardPage() {
           </div>
 
           {activitiesLoading ? (
-            <p className="mt-6 text-neutral-400">
-              Activiteiten laden...
-            </p>
+            <div className="mt-6 space-y-3">
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+            </div>
           ) : activities.length === 0 ? (
             <p className="mt-6 text-neutral-400">
               Nog geen activiteiten gevonden.
