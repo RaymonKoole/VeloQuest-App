@@ -150,6 +150,7 @@ export async function POST(request: NextRequest) {
 
     let enrichedThisSync = 0;
     let remainingToEnrich = 0;
+    let enrichFailedThisSync = 0;
 
     if (rows.length > 0) {
       const { error: upsertError } = await supabaseAdmin
@@ -236,7 +237,7 @@ const needsEnrichment = savedActivities.filter(
   (activity) => !enrichedDbIds.has(activity.dbId)
 );
 
-let actuallyEnriched = 0;
+let attemptedCount = 0;
 
 // Verrijk per sync-aanroep maar een beperkt aantal ritten met extra
 // Strava-aanroepen (detail + streams) — voorkomt een piek aan aanvragen
@@ -244,13 +245,13 @@ let actuallyEnriched = 0;
 // volgende syncs, inclusief oude ritten. Stop ook vroegtijdig als het
 // tijdsbudget van deze aanroep bijna op is.
 for (const { dbId, stravaActivityId } of needsEnrichment) {
-  if (actuallyEnriched >= MAX_ENRICH_PER_SYNC) {
+  if (attemptedCount >= MAX_ENRICH_PER_SYNC) {
     break;
   }
 
   if (Date.now() - syncStartedAt > SYNC_TIME_BUDGET_MS) {
     console.warn(
-      `Verrijken afgebroken wegens tijdslimiet na ${actuallyEnriched} ritten`
+      `Verrijken afgebroken wegens tijdslimiet na ${attemptedCount} ritten`
     );
     break;
   }
@@ -258,13 +259,20 @@ for (const { dbId, stravaActivityId } of needsEnrichment) {
   try {
     const detail = await fetchActivityDetail(stravaActivityId, stravaAccessToken);
 
-    await supabaseAdmin
+    const { error: detailUpdateError } = await supabaseAdmin
       .from("strava_activities")
       .update({
         kudos_count: detail.kudos_count ?? null,
         calories: detail.calories ?? null,
       })
       .eq("id", dbId);
+
+    if (detailUpdateError) {
+      console.error(
+        `Opslaan van activiteitdetail mislukt voor rit ${dbId} (Strava-id ${stravaActivityId}):`,
+        detailUpdateError
+      );
+    }
 
     if (Array.isArray(detail.segment_efforts) && detail.segment_efforts.length > 0) {
       const effortRows = detail.segment_efforts
@@ -280,9 +288,16 @@ for (const { dbId, stravaActivityId } of needsEnrichment) {
         }));
 
       if (effortRows.length > 0) {
-        await supabaseAdmin
+        const { error: effortsError } = await supabaseAdmin
           .from("activity_segment_efforts")
           .upsert(effortRows, { onConflict: "activity_id,segment_id" });
+
+        if (effortsError) {
+          console.error(
+            `Opslaan van segment-efforts mislukt voor rit ${dbId} (Strava-id ${stravaActivityId}):`,
+            effortsError
+          );
+        }
       }
     }
   } catch (detailError) {
@@ -300,21 +315,30 @@ for (const { dbId, stravaActivityId } of needsEnrichment) {
     // Zo telt deze activiteit als "verwerkt" en komt hij niet iedere sync
     // opnieuw in de wachtrij terecht, wat anders ten koste zou gaan van de
     // ritten die nog wél echt verrijkt moeten worden.
-    await supabaseAdmin.from("activity_streams").upsert(
-      {
-        activity_id: dbId,
-        user_id: user.id,
-        time: streams?.time?.data ?? null,
-        latlng: streams?.latlng?.data ?? null,
-        altitude: streams?.altitude?.data ?? null,
-        velocity_smooth: streams?.velocity_smooth?.data ?? null,
-        heartrate: streams?.heartrate?.data ?? null,
-        cadence: streams?.cadence?.data ?? null,
-        watts: streams?.watts?.data ?? null,
-        moving: streams?.moving?.data ?? null,
-      },
-      { onConflict: "activity_id" }
-    );
+    const { error: streamsUpsertError } = await supabaseAdmin
+      .from("activity_streams")
+      .upsert(
+        {
+          activity_id: dbId,
+          user_id: user.id,
+          time: streams?.time?.data ?? null,
+          latlng: streams?.latlng?.data ?? null,
+          altitude: streams?.altitude?.data ?? null,
+          velocity_smooth: streams?.velocity_smooth?.data ?? null,
+          heartrate: streams?.heartrate?.data ?? null,
+          cadence: streams?.cadence?.data ?? null,
+          watts: streams?.watts?.data ?? null,
+          moving: streams?.moving?.data ?? null,
+        },
+        { onConflict: "activity_id" }
+      );
+
+    if (streamsUpsertError) {
+      console.error(
+        `Opslaan van streams mislukt voor rit ${dbId} (Strava-id ${stravaActivityId}):`,
+        streamsUpsertError
+      );
+    }
   } catch (streamError) {
     console.error(
       `Streams ophalen mislukt voor ${stravaActivityId}:`,
@@ -322,13 +346,32 @@ for (const { dbId, stravaActivityId } of needsEnrichment) {
     );
   }
 
-  actuallyEnriched++;
+  attemptedCount++;
 
   await new Promise((resolve) => setTimeout(resolve, ENRICH_DELAY_MS));
 }
 
-enrichedThisSync = actuallyEnriched;
-remainingToEnrich = Math.max(needsEnrichment.length - actuallyEnriched, 0);
+// Tel na afloop opnieuw vanuit de database (i.p.v. simpelweg "needsEnrichment
+// min aantal pogingen") — een poging kan mislukken (bv. Strava rate limit,
+// een databasefout), en dan telt hij niet mee als daadwerkelijk verrijkt.
+// Zo blijft het getal dat de gebruiker ziet altijd kloppend en dalend.
+const { data: finalEnrichedStreamRows } =
+  savedDbIds.length > 0
+    ? await supabaseAdmin
+        .from("activity_streams")
+        .select("activity_id")
+        .in("activity_id", savedDbIds)
+    : { data: [] as { activity_id: number }[] };
+
+const finalEnrichedDbIds = new Set(
+  (finalEnrichedStreamRows || []).map((row) => row.activity_id)
+);
+
+remainingToEnrich = savedActivities.filter(
+  (activity) => !finalEnrichedDbIds.has(activity.dbId)
+).length;
+enrichedThisSync = Math.max(needsEnrichment.length - remainingToEnrich, 0);
+enrichFailedThisSync = Math.max(attemptedCount - enrichedThisSync, 0);
 
       if (upsertError) {
         console.error("Strava activities database error:", upsertError);
@@ -347,6 +390,7 @@ await calculateQuests(user.id);
       imported: rows.length,
       enrichedThisSync,
       remainingToEnrich,
+      enrichFailedThisSync,
     });
   } catch (error) {
     console.error("Strava sync error:", error);

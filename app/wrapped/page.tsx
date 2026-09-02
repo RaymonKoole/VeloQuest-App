@@ -155,9 +155,14 @@ export default function WrappedPage() {
       const stillRemaining =
         (syncJson.remainingToEnrich || 0) + (stopsJson?.remainingStreams || 0);
 
+      const failedHint =
+        syncJson.enrichFailedThisSync > 0
+          ? ` (${syncJson.enrichFailedThisSync} lukte(n) niet, mogelijk een tijdelijke Strava-limiet — probeer het dan over een paar minuten opnieuw)`
+          : "";
+
       setEnrichMessage(
         stillRemaining > 0
-          ? `${syncJson.enrichedThisSync || 0} ritten verrijkt, nog ongeveer ${stillRemaining} te gaan — klik gerust nog eens.`
+          ? `${syncJson.enrichedThisSync || 0} ritten verrijkt, nog ${stillRemaining} te gaan${failedHint} — klik gerust nog eens.`
           : "Alle ritten zijn verrijkt! 🎉"
       );
     } catch (enrichError) {
