@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import Navbar from "@/components/Navbar";
 
@@ -32,6 +32,16 @@ export default function WrappedPage() {
   const [enriching, setEnriching] = useState(false);
   const [enrichMessage, setEnrichMessage] = useState("");
 
+  // /api/stops en /api/wrapped worden vanaf deze pagina op meerdere plekken
+  // parallel aangeroepen (initiële load, achtergrond-sync, "Verrijk nu").
+  // Zonder bewaking kan een trage, eerder gestarte aanvraag zijn (verouderde)
+  // resultaat over een latere, snellere aanvraag heen zetten — dat zag je als
+  // een kaart die even verscheen en toen weer verdween. Deze tellers zorgen
+  // ervoor dat alleen het resultaat van de laatst gestarte aanvraag wordt
+  // toegepast.
+  const stopsRequestIdRef = useRef(0);
+  const wrappedRequestIdRef = useRef(0);
+
   async function getAuthHeaders() {
     const {
       data: { session },
@@ -46,8 +56,15 @@ export default function WrappedPage() {
   }
 
   async function fetchWrapped(headers: Record<string, string>) {
+    const requestId = ++wrappedRequestIdRef.current;
     const response = await fetch("/api/wrapped", { headers });
     const json = await response.json();
+
+    if (requestId !== wrappedRequestIdRef.current) {
+      // Er is inmiddels een nieuwere aanvraag gestart — dit resultaat is
+      // verouderd, negeer het.
+      return json;
+    }
 
     if (!response.ok) {
       setError(json.error || "Wrapped kon niet worden geladen.");
@@ -59,6 +76,7 @@ export default function WrappedPage() {
   }
 
   async function fetchStops(headers: Record<string, string>) {
+    const requestId = ++stopsRequestIdRef.current;
     const response = await fetch("/api/stops", { headers });
 
     if (!response.ok) {
@@ -66,6 +84,13 @@ export default function WrappedPage() {
     }
 
     const json = await response.json();
+
+    if (requestId !== stopsRequestIdRef.current) {
+      // Er is inmiddels een nieuwere aanvraag gestart — dit resultaat is
+      // verouderd, negeer het.
+      return json;
+    }
+
     setStops(json);
     setRemainingStreams(json.remainingStreams ?? 0);
     return json;
@@ -113,9 +138,15 @@ export default function WrappedPage() {
     loadWrapped();
   }, []);
 
+  // Elke ronde doet een flink aantal Strava-aanroepen (activiteitenlijst +
+  // tot 15 ritten x 2 aanroepen). Strava staat maar ~100 aanvragen per 15
+  // minuten toe, dus na een paar rondes achter elkaar lopen we daar sowieso
+  // tegenaan — deze cap voorkomt dat we dat blind blijven proberen.
+  const MAX_AUTO_ROUNDS = 4;
+  const ROUND_DELAY_MS = 2000;
+
   async function handleEnrichMore() {
     setEnriching(true);
-    setEnrichMessage("Ritten verrijken...");
 
     try {
       const headers = await getAuthHeaders();
@@ -124,47 +155,69 @@ export default function WrappedPage() {
         return;
       }
 
-      const syncResponse = await fetch("/api/strava/sync", {
-        method: "POST",
-        headers,
-      });
-
-      let syncJson: any;
-
-      try {
-        syncJson = await syncResponse.json();
-      } catch (parseError) {
-        // Kan gebeuren als de server de tijdslimiet overschrijdt en een
-        // platform-foutpagina teruggeeft in plaats van JSON.
+      for (let round = 1; round <= MAX_AUTO_ROUNDS; round++) {
         setEnrichMessage(
-          "De server deed er te lang over. Probeer het over een moment nog eens."
+          round === 1
+            ? "Ritten verrijken..."
+            : `Ritten verrijken (ronde ${round})...`
         );
-        return;
+
+        const syncResponse = await fetch("/api/strava/sync", {
+          method: "POST",
+          headers,
+        });
+
+        let syncJson: any;
+
+        try {
+          syncJson = await syncResponse.json();
+        } catch (parseError) {
+          // Kan gebeuren als de server de tijdslimiet overschrijdt en een
+          // platform-foutpagina teruggeeft in plaats van JSON.
+          setEnrichMessage(
+            "De server deed er te lang over. Probeer het over een moment nog eens."
+          );
+          return;
+        }
+
+        if (!syncResponse.ok) {
+          // Bv. een Strava rate limit (429) — de foutmelding legt al uit
+          // wat er aan de hand is en wanneer het opnieuw te proberen is.
+          setEnrichMessage(syncJson.error || "Verrijken is niet gelukt.");
+          return;
+        }
+
+        setRemainingToEnrich(syncJson.remainingToEnrich ?? 0);
+
+        const stopsJson = await fetchStops(headers);
+        await fetchWrapped(headers);
+
+        const stillRemaining =
+          (syncJson.remainingToEnrich || 0) + (stopsJson?.remainingStreams || 0);
+
+        const failedHint =
+          syncJson.enrichFailedThisSync > 0
+            ? ` (${syncJson.enrichFailedThisSync} lukte(n) niet, mogelijk een tijdelijke Strava-limiet)`
+            : "";
+
+        if (stillRemaining <= 0) {
+          setEnrichMessage("Alle ritten zijn verrijkt! 🎉");
+          return;
+        }
+
+        if (round === MAX_AUTO_ROUNDS) {
+          setEnrichMessage(
+            `${syncJson.enrichedThisSync || 0} ritten verrijkt, nog ${stillRemaining} te gaan${failedHint}. Gestopt na ${MAX_AUTO_ROUNDS} rondes om Strava's limiet niet te raken — klik gerust nog eens.`
+          );
+          return;
+        }
+
+        setEnrichMessage(
+          `${syncJson.enrichedThisSync || 0} ritten verrijkt, nog ${stillRemaining} te gaan${failedHint}...`
+        );
+
+        await new Promise((resolve) => setTimeout(resolve, ROUND_DELAY_MS));
       }
-
-      if (!syncResponse.ok) {
-        setEnrichMessage(syncJson.error || "Verrijken is niet gelukt.");
-        return;
-      }
-
-      setRemainingToEnrich(syncJson.remainingToEnrich ?? 0);
-
-      const stopsJson = await fetchStops(headers);
-      await fetchWrapped(headers);
-
-      const stillRemaining =
-        (syncJson.remainingToEnrich || 0) + (stopsJson?.remainingStreams || 0);
-
-      const failedHint =
-        syncJson.enrichFailedThisSync > 0
-          ? ` (${syncJson.enrichFailedThisSync} lukte(n) niet, mogelijk een tijdelijke Strava-limiet — probeer het dan over een paar minuten opnieuw)`
-          : "";
-
-      setEnrichMessage(
-        stillRemaining > 0
-          ? `${syncJson.enrichedThisSync || 0} ritten verrijkt, nog ${stillRemaining} te gaan${failedHint} — klik gerust nog eens.`
-          : "Alle ritten zijn verrijkt! 🎉"
-      );
     } catch (enrichError) {
       console.error("Verrijken mislukt:", enrichError);
       setEnrichMessage("Verrijken is niet gelukt. Probeer het later opnieuw.");
