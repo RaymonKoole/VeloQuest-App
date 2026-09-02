@@ -56,10 +56,17 @@ export async function fetchRoadGraph(
   lng: number,
   radiusMeters: number
 ): Promise<RoadGraph> {
+  // Nederlandse autowegen (waar naast vaak een apart fietspad ligt) worden in
+  // OSM getagd als motorroad=yes en/of bicycle=no, ook als de highway-klasse
+  // zelf (bv. "primary") wél in onze lijst staat. Die sluiten we hier expliciet
+  // uit met een set-verschil (i.p.v. een negatieve tag-filter: die zou ook
+  // wegen zónder deze tags helemaal uitsluiten, wat bijna alle wegen zijn).
   const query = `
 [out:json][timeout:25];
 (
   way["highway"~"^(${BIKE_HIGHWAY_TYPES})$"](around:${radiusMeters},${lat},${lng});
+  - way["motorroad"="yes"](around:${radiusMeters},${lat},${lng});
+  - way["bicycle"="no"](around:${radiusMeters},${lat},${lng});
 );
 out body;
 >;

@@ -27,6 +27,8 @@ export default function RoutesPage() {
   const [city, setCity] = useState("");
 
   const [startAddress, setStartAddress] = useState("");
+  const [isLoop, setIsLoop] = useState(true);
+  const [endAddress, setEndAddress] = useState("");
   const [distanceKm, setDistanceKm] = useState("30");
   const [desiredNewKm, setDesiredNewKm] = useState("");
   const [direction, setDirection] = useState("");
@@ -38,6 +40,7 @@ export default function RoutesPage() {
     newKm: number;
     riddenKm: number;
     startDisplayName: string;
+    endDisplayName: string | null;
   } | null>(null);
 
   async function handleGenerate(e: React.FormEvent) {
@@ -65,6 +68,7 @@ export default function RoutesPage() {
       },
       body: JSON.stringify({
         startAddress,
+        endAddress: isLoop ? undefined : endAddress,
         distanceKm: Number(distanceKm),
         desiredNewKm: desiredNewKm || undefined,
         direction: direction || undefined,
@@ -85,6 +89,7 @@ export default function RoutesPage() {
       newKm: data.newKm,
       riddenKm: data.riddenKm,
       startDisplayName: data.startDisplayName,
+      endDisplayName: data.endDisplayName ?? null,
     });
     setGenerating(false);
   }
@@ -239,59 +244,93 @@ export default function RoutesPage() {
               />
             </div>
 
-            <div className="w-28">
-              <label className="mb-1 block text-xs text-neutral-500">
-                Afstand (km)
-              </label>
-
+            <div className="flex items-center gap-2 pb-2">
               <input
-                type="number"
-                min={1}
-                max={150}
-                required
-                value={distanceKm}
-                onChange={(e) => setDistanceKm(e.target.value)}
-                className="w-full rounded-xl border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-white"
+                id="isLoop"
+                type="checkbox"
+                checked={isLoop}
+                onChange={(e) => setIsLoop(e.target.checked)}
+                className="h-4 w-4 rounded border-neutral-700 bg-neutral-950"
               />
-            </div>
-
-            <div className="w-36">
-              <label className="mb-1 block text-xs text-neutral-500">
-                Nieuw (km, optioneel)
+              <label htmlFor="isLoop" className="text-sm text-neutral-300">
+                🔁 Rondje (start = eindpunt)
               </label>
-
-              <input
-                type="number"
-                min={0}
-                step="0.5"
-                value={desiredNewKm}
-                onChange={(e) => setDesiredNewKm(e.target.value)}
-                placeholder="geen voorkeur"
-                className="w-full rounded-xl border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-white"
-              />
             </div>
 
-            <div className="w-40">
-              <label className="mb-1 block text-xs text-neutral-500">
-                Richting (optioneel)
-              </label>
+            {!isLoop && (
+              <div className="flex-1 min-w-[220px]">
+                <label className="mb-1 block text-xs text-neutral-500">
+                  Eindadres
+                </label>
 
-              <select
-                value={direction}
-                onChange={(e) => setDirection(e.target.value)}
-                className="w-full rounded-xl border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-white"
-              >
-                <option value="">Geen voorkeur</option>
-                <option value="N">Noord</option>
-                <option value="NO">Noordoost</option>
-                <option value="O">Oost</option>
-                <option value="ZO">Zuidoost</option>
-                <option value="Z">Zuid</option>
-                <option value="ZW">Zuidwest</option>
-                <option value="W">West</option>
-                <option value="NW">Noordwest</option>
-              </select>
-            </div>
+                <input
+                  type="text"
+                  required={!isLoop}
+                  value={endAddress}
+                  onChange={(e) => setEndAddress(e.target.value)}
+                  placeholder="bijv. Stationsplein, Amersfoort"
+                  className="w-full rounded-xl border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-white"
+                />
+              </div>
+            )}
+
+            {isLoop && (
+              <>
+                <div className="w-28">
+                  <label className="mb-1 block text-xs text-neutral-500">
+                    Afstand (km)
+                  </label>
+
+                  <input
+                    type="number"
+                    min={1}
+                    max={150}
+                    required
+                    value={distanceKm}
+                    onChange={(e) => setDistanceKm(e.target.value)}
+                    className="w-full rounded-xl border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-white"
+                  />
+                </div>
+
+                <div className="w-36">
+                  <label className="mb-1 block text-xs text-neutral-500">
+                    Nieuw (km, optioneel)
+                  </label>
+
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.5"
+                    value={desiredNewKm}
+                    onChange={(e) => setDesiredNewKm(e.target.value)}
+                    placeholder="geen voorkeur"
+                    className="w-full rounded-xl border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-white"
+                  />
+                </div>
+
+                <div className="w-40">
+                  <label className="mb-1 block text-xs text-neutral-500">
+                    Richting (optioneel)
+                  </label>
+
+                  <select
+                    value={direction}
+                    onChange={(e) => setDirection(e.target.value)}
+                    className="w-full rounded-xl border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-white"
+                  >
+                    <option value="">Geen voorkeur</option>
+                    <option value="N">Noord</option>
+                    <option value="NO">Noordoost</option>
+                    <option value="O">Oost</option>
+                    <option value="ZO">Zuidoost</option>
+                    <option value="Z">Zuid</option>
+                    <option value="ZW">Zuidwest</option>
+                    <option value="W">West</option>
+                    <option value="NW">Noordwest</option>
+                  </select>
+                </div>
+              </>
+            )}
 
             <button
               type="submit"
@@ -316,6 +355,13 @@ export default function RoutesPage() {
                 <p className="text-neutral-500">Startpunt</p>
                 <p className="text-neutral-200">{generatedStats.startDisplayName}</p>
               </div>
+
+              {generatedStats.endDisplayName && (
+                <div>
+                  <p className="text-neutral-500">Eindpunt</p>
+                  <p className="text-neutral-200">{generatedStats.endDisplayName}</p>
+                </div>
+              )}
 
               <div>
                 <p className="text-neutral-500">Totale afstand</p>

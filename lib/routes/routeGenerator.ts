@@ -1,5 +1,5 @@
 import { haversineDistanceMeters } from "@/lib/routes/haversine";
-import type { RoadGraph } from "@/lib/routes/osmGraph";
+import type { GraphEdge, RoadGraph } from "@/lib/routes/osmGraph";
 
 const BUCKET_SIZE_DEG = 0.0005; // ~50m
 const RIDDEN_THRESHOLD_M = 25;
@@ -177,7 +177,8 @@ class MinHeap {
 export function shortestPath(
   graph: RoadGraph,
   fromId: number,
-  toId: number
+  toId: number,
+  edgeCost: (edge: GraphEdge) => number = (edge) => edge.distanceM
 ): number[] | null {
   const dist = new Map<number, number>();
   const prev = new Map<number, number>();
@@ -211,7 +212,7 @@ export function shortestPath(
         continue;
       }
 
-      const newDist = d + edge.distanceM;
+      const newDist = d + edgeCost(edge);
 
       if (newDist < (dist.get(edge.to) ?? Infinity)) {
         dist.set(edge.to, newDist);
@@ -423,6 +424,63 @@ export function generateLoopRoute(
     const edge = edges.find((e) => e.to === path[i + 1]);
 
     if (edge?.ridden) {
+      riddenM += edge.distanceM;
+    }
+  }
+
+  const points = path
+    .map((nodeId) => graph.nodes.get(nodeId))
+    .filter((node): node is NonNullable<typeof node> => Boolean(node))
+    .map((node) => [node.lat, node.lng] as [number, number]);
+
+  return {
+    points,
+    distanceM: traveled,
+    riddenM,
+    newM: Math.max(0, traveled - riddenM),
+  };
+}
+
+export type GeneratePointToPointOptions = {
+  /** 0-0.9, fractie korting op de "kosten" van nog niet bereden wegen (zachte voorkeur). Default 0.35. */
+  noveltyWeight?: number;
+};
+
+/**
+ * Genereert een echte route van A naar B over het wegennet (kortste-pad,
+ * eventueel met een zachte voorkeur voor nog niet eerder bereden wegen) —
+ * in tegenstelling tot generateLoopRoute is dit geen rondje terug naar start.
+ */
+export function generatePointToPointRoute(
+  graph: RoadGraph,
+  startNodeId: number,
+  endNodeId: number,
+  options: GeneratePointToPointOptions = {}
+) {
+  const noveltyDiscount = Math.min(Math.max(options.noveltyWeight ?? 0.35, 0), 0.9);
+
+  const path = shortestPath(graph, startNodeId, endNodeId, (edge) =>
+    edge.ridden ? edge.distanceM : edge.distanceM * (1 - noveltyDiscount)
+  );
+
+  if (!path || path.length < 2) {
+    return null;
+  }
+
+  let traveled = 0;
+  let riddenM = 0;
+
+  for (let i = 0; i < path.length - 1; i++) {
+    const edges = graph.adjacency.get(path[i]) || [];
+    const edge = edges.find((e) => e.to === path[i + 1]);
+
+    if (!edge) {
+      continue;
+    }
+
+    traveled += edge.distanceM;
+
+    if (edge.ridden) {
       riddenM += edge.distanceM;
     }
   }

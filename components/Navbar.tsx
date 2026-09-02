@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { href: "/skills", label: "Skills", icon: "🧬" },
   { href: "/achievements", label: "Achievements", icon: "🏆" },
   { href: "/activities", label: "Activities", icon: "🚴" },
+  { href: "/segments", label: "Segmenten", icon: "🚵" },
   { href: "/routes", label: "Routes", icon: "🗺️" },
   { href: "/wrapped", label: "Wrapped", icon: "✨" },
 ];
