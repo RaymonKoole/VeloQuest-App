@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+const MAX_PR_SEGMENTS_SHOWN = 8;
+
 export async function GET(request: NextRequest) {
   try {
     const authorization = request.headers.get("authorization");
@@ -65,13 +67,30 @@ export async function GET(request: NextRequest) {
       (activityRows || []).map((row) => [row.id, row])
     );
 
+    const segmentIds = Array.from(
+      new Set((efforts || []).map((effort) => effort.segment_id).filter(Boolean))
+    );
+
+    const { data: segmentDetailRows } = segmentIds.length
+      ? await supabaseAdmin
+          .from("segments")
+          .select(
+            "segment_id, distance, average_grade, elevation_high, elevation_low, athlete_count, effort_count, star_count, city, country"
+          )
+          .in("segment_id", segmentIds)
+      : { data: [] as any[] };
+
+    const segmentDetailById = new Map(
+      (segmentDetailRows || []).map((row) => [row.segment_id, row])
+    );
+
     type SegmentAgg = {
       segmentId: number;
       name: string;
       attempts: number;
       bestElapsedSeconds: number;
       isPr: boolean;
-      isKom: boolean;
+      bestKomRank: number | null;
       lastRiddenDate: string | null;
     };
 
@@ -93,7 +112,7 @@ export async function GET(request: NextRequest) {
           attempts: 1,
           bestElapsedSeconds: elapsed,
           isPr: effort.pr_rank === 1,
-          isKom: effort.kom_rank === 1,
+          bestKomRank: effort.kom_rank ?? null,
           lastRiddenDate: activity?.start_date ?? null,
         });
         continue;
@@ -102,7 +121,10 @@ export async function GET(request: NextRequest) {
       existing.attempts += 1;
       existing.bestElapsedSeconds = Math.min(existing.bestElapsedSeconds, elapsed);
       existing.isPr = existing.isPr || effort.pr_rank === 1;
-      existing.isKom = existing.isKom || effort.kom_rank === 1;
+
+      if (effort.kom_rank && (!existing.bestKomRank || effort.kom_rank < existing.bestKomRank)) {
+        existing.bestKomRank = effort.kom_rank;
+      }
 
       if (
         activity?.start_date &&
@@ -112,11 +134,36 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const allSegments = Array.from(bySegment.values());
+    function withDetail(segment: SegmentAgg) {
+      const detail = segmentDetailById.get(segment.segmentId);
 
-    const prSegments = allSegments
+      return {
+        ...segment,
+        distanceKm: detail?.distance ? Math.round((detail.distance / 1000) * 10) / 10 : null,
+        averageGrade: detail?.average_grade ?? null,
+        elevationGainM:
+          detail?.elevation_high != null && detail?.elevation_low != null
+            ? Math.round(detail.elevation_high - detail.elevation_low)
+            : null,
+        // "Populariteit": hoeveel unieke Strava-gebruikers en pogingen dit
+        // segment ooit heeft gehad. Een exacte ranglijstpositie/percentiel
+        // t.o.v. alle Strava-gebruikers is met de huidige Strava-API-toegang
+        // niet betrouwbaar op te vragen (die segment-leaderboard-endpoint is
+        // voor de meeste apps afgeschermd) — vandaar athlete_count/effort_count
+        // als beschikbare, betrouwbare populariteitsmaat.
+        athleteCount: detail?.athlete_count ?? null,
+        effortCount: detail?.effort_count ?? null,
+        starCount: detail?.star_count ?? null,
+        city: detail?.city ?? null,
+        country: detail?.country ?? null,
+      };
+    }
+
+    const allSegments = Array.from(bySegment.values()).map(withDetail);
+
+    const prSegmentsAll = allSegments
       .filter((segment) => segment.isPr)
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort((a, b) => (b.athleteCount ?? 0) - (a.athleteCount ?? 0));
 
     const mostRiddenSegments = [...allSegments]
       .sort((a, b) => b.attempts - a.attempts)
@@ -124,7 +171,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       totalSegments: allSegments.length,
-      prSegments,
+      totalPrSegments: prSegmentsAll.length,
+      prSegments: prSegmentsAll.slice(0, MAX_PR_SEGMENTS_SHOWN),
       mostRiddenSegments,
     });
   } catch (error) {

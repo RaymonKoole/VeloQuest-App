@@ -7,6 +7,7 @@ import { calculateQuests } from "@/lib/quests/calculateQuests";
 import { getValidStravaAccessToken } from "@/lib/strava/getAccessToken";
 import { fetchActivityDetail } from "@/lib/strava/fetchActivityDetail";
 import { fetchActivityStreams } from "@/lib/strava/fetchActivityStreams";
+import { fetchSegmentDetail } from "@/lib/strava/fetchSegmentDetail";
 
 // Bij een eerste sync na deze update kan de "hele rithistorie" als nieuw gelden.
 // Verwerk daarom per sync-aanroep maar een beperkt aantal ritten met extra
@@ -382,6 +383,89 @@ enrichFailedThisSync = Math.max(attemptedCount - enrichedThisSync, 0);
         );
       }
     }
+// Verrijk ook segment-metadata (afstand, hellingspercentage, populariteit)
+// voor een beperkt aantal nog onbekende segmenten. Segmenten worden door
+// veel gebruikers gedeeld, dus dit loopt na de eerste paar syncs snel leeg.
+const MAX_SEGMENT_DETAILS_PER_SYNC = 10;
+
+const { data: userSegmentIdRows } = await supabaseAdmin
+  .from("activity_segment_efforts")
+  .select("segment_id")
+  .eq("user_id", user.id);
+
+const distinctSegmentIds = Array.from(
+  new Set(
+    (userSegmentIdRows || [])
+      .map((row) => row.segment_id)
+      .filter((id): id is number => Boolean(id))
+  )
+);
+
+if (distinctSegmentIds.length > 0 && Date.now() - syncStartedAt < SYNC_TIME_BUDGET_MS) {
+  const { data: knownSegmentRows } = await supabaseAdmin
+    .from("segments")
+    .select("segment_id")
+    .in("segment_id", distinctSegmentIds);
+
+  const knownSegmentIds = new Set(
+    (knownSegmentRows || []).map((row) => row.segment_id)
+  );
+  const missingSegmentIds = distinctSegmentIds.filter(
+    (id) => !knownSegmentIds.has(id)
+  );
+
+  for (const segmentId of missingSegmentIds.slice(0, MAX_SEGMENT_DETAILS_PER_SYNC)) {
+    if (Date.now() - syncStartedAt > SYNC_TIME_BUDGET_MS) {
+      console.warn(
+        "Segmentdetails ophalen afgebroken wegens tijdslimiet"
+      );
+      break;
+    }
+
+    try {
+      const detail = await fetchSegmentDetail(segmentId, stravaAccessToken);
+
+      if (detail) {
+        const { error: segmentUpsertError } = await supabaseAdmin
+          .from("segments")
+          .upsert(
+            {
+              segment_id: detail.id,
+              name: detail.name ?? null,
+              distance: detail.distance ?? null,
+              average_grade: detail.average_grade ?? null,
+              maximum_grade: detail.maximum_grade ?? null,
+              elevation_high: detail.elevation_high ?? null,
+              elevation_low: detail.elevation_low ?? null,
+              climb_category: detail.climb_category ?? null,
+              city: detail.city ?? null,
+              state: detail.state ?? null,
+              country: detail.country ?? null,
+              athlete_count: detail.athlete_count ?? null,
+              effort_count: detail.effort_count ?? null,
+              star_count: detail.star_count ?? null,
+            },
+            { onConflict: "segment_id" }
+          );
+
+        if (segmentUpsertError) {
+          console.error(
+            `Opslaan van segmentdetail mislukt voor segment ${segmentId}:`,
+            segmentUpsertError
+          );
+        }
+      }
+    } catch (segmentError) {
+      console.error(
+        `Segmentdetail ophalen mislukt voor segment ${segmentId}:`,
+        segmentError
+      );
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, ENRICH_DELAY_MS));
+  }
+}
+
 await checkBadges(user.id);
 await calculateSkills(user.id);
 await calculateQuests(user.id);
