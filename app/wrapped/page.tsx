@@ -433,29 +433,30 @@ export default function WrappedPage() {
           Jouw fietsjaar in een notendop, gebaseerd op je Strava-ritten.
         </p>
 
-        {!loading &&
-          !error &&
-          ((remainingToEnrich ?? 0) > 0 || (remainingStreams ?? 0) > 0 || enrichMessage) && (
-            <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3 text-sm">
-              <span className="text-neutral-400">
-                Sommige ritten missen nog details (cafés, segmenten, kudos) — dit
-                vult zich geleidelijk aan.
-              </span>
+        {!loading && !error && data?.hasData && (
+          <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3 text-sm">
+            <span className="text-neutral-400">
+              {remainingToEnrich === null && remainingStreams === null
+                ? "Details zoals cafés, segmenten en kudos worden op de achtergrond aangevuld..."
+                : (remainingToEnrich ?? 0) + (remainingStreams ?? 0) > 0
+                  ? "Sommige ritten missen nog details (cafés, segmenten, kudos)."
+                  : "Alle ritten zijn verrijkt met extra details."}
+            </span>
 
-              <button
-                type="button"
-                onClick={handleEnrichMore}
-                disabled={enriching}
-                className="rounded-lg bg-[#d59a57] px-3 py-1.5 text-sm font-medium text-neutral-950 hover:opacity-90 disabled:opacity-50"
-              >
-                {enriching ? "Bezig..." : "🔄 Verrijk nu"}
-              </button>
+            <button
+              type="button"
+              onClick={handleEnrichMore}
+              disabled={enriching}
+              className="rounded-lg bg-[#d59a57] px-3 py-1.5 text-sm font-medium text-neutral-950 hover:opacity-90 disabled:opacity-50"
+            >
+              {enriching ? "Bezig..." : "🔄 Verrijk nu"}
+            </button>
 
-              {enrichMessage && (
-                <span className="text-neutral-500">{enrichMessage}</span>
-              )}
-            </div>
-          )}
+            {enrichMessage && (
+              <span className="text-neutral-500">{enrichMessage}</span>
+            )}
+          </div>
+        )}
 
         {loading ? (
           <p className="mt-8 text-sm text-neutral-400">Wrapped laden...</p>
