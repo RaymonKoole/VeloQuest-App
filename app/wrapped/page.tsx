@@ -27,48 +27,134 @@ export default function WrappedPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [index, setIndex] = useState(0);
+  const [remainingToEnrich, setRemainingToEnrich] = useState<number | null>(null);
+  const [remainingStreams, setRemainingStreams] = useState<number | null>(null);
+  const [enriching, setEnriching] = useState(false);
+  const [enrichMessage, setEnrichMessage] = useState("");
+
+  async function getAuthHeaders() {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session) {
+      window.location.href = "/login";
+      return null;
+    }
+
+    return { Authorization: `Bearer ${session.access_token}` };
+  }
+
+  async function fetchWrapped(headers: Record<string, string>) {
+    const response = await fetch("/api/wrapped", { headers });
+    const json = await response.json();
+
+    if (!response.ok) {
+      setError(json.error || "Wrapped kon niet worden geladen.");
+      return null;
+    }
+
+    setData(json);
+    return json;
+  }
+
+  async function fetchStops(headers: Record<string, string>) {
+    const response = await fetch("/api/stops", { headers });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const json = await response.json();
+    setStops(json);
+    setRemainingStreams(json.remainingStreams ?? 0);
+    return json;
+  }
 
   useEffect(() => {
     async function loadWrapped() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const headers = await getAuthHeaders();
 
-      if (!session) {
-        window.location.href = "/login";
+      if (!headers) {
         return;
       }
 
-      const headers = { Authorization: `Bearer ${session.access_token}` };
-
-      const response = await fetch("/api/wrapped", { headers });
-      const json = await response.json();
-
-      if (!response.ok) {
-        setError(json.error || "Wrapped kon niet worden geladen.");
-        setLoading(false);
-        return;
-      }
-
-      setData(json);
+      await fetchWrapped(headers);
       setLoading(false);
 
       // Pauzeplekken (bv. cafés) verwerken duurt langer (Overpass-lookups);
       // laad dit los na de rest, zonder de Wrapped-kaarten te blokkeren.
-      fetch("/api/stops", { headers })
+      fetchStops(headers).catch((stopsError) => {
+        console.error("Pauzeplekken laden mislukt:", stopsError);
+      });
+
+      // Elk bezoek aan Wrapped verrijkt op de achtergrond ook alvast een
+      // volgende portie ritten (streams/segments/kudos), net als het
+      // dashboard doet — zonder dat de gebruiker daarvoor iets hoeft te doen.
+      fetch("/api/strava/sync", { method: "POST", headers })
         .then((r) => (r.ok ? r.json() : null))
-        .then((stopsJson) => {
-          if (stopsJson) {
-            setStops(stopsJson);
+        .then(async (syncJson) => {
+          if (!syncJson) {
+            return;
+          }
+
+          setRemainingToEnrich(syncJson.remainingToEnrich ?? 0);
+
+          if ((syncJson.enrichedThisSync || 0) > 0) {
+            await fetchWrapped(headers);
+            await fetchStops(headers);
           }
         })
-        .catch((stopsError) => {
-          console.error("Pauzeplekken laden mislukt:", stopsError);
+        .catch((syncError) => {
+          console.error("Achtergrond-sync mislukt:", syncError);
         });
     }
 
     loadWrapped();
   }, []);
+
+  async function handleEnrichMore() {
+    setEnriching(true);
+    setEnrichMessage("Ritten verrijken...");
+
+    try {
+      const headers = await getAuthHeaders();
+
+      if (!headers) {
+        return;
+      }
+
+      const syncResponse = await fetch("/api/strava/sync", {
+        method: "POST",
+        headers,
+      });
+      const syncJson = await syncResponse.json();
+
+      if (!syncResponse.ok) {
+        setEnrichMessage(syncJson.error || "Verrijken is niet gelukt.");
+        return;
+      }
+
+      setRemainingToEnrich(syncJson.remainingToEnrich ?? 0);
+
+      const stopsJson = await fetchStops(headers);
+      await fetchWrapped(headers);
+
+      const stillRemaining =
+        (syncJson.remainingToEnrich || 0) + (stopsJson?.remainingStreams || 0);
+
+      setEnrichMessage(
+        stillRemaining > 0
+          ? `${syncJson.enrichedThisSync || 0} ritten verrijkt, nog ongeveer ${stillRemaining} te gaan — klik gerust nog eens.`
+          : "Alle ritten zijn verrijkt! 🎉"
+      );
+    } catch (enrichError) {
+      console.error("Verrijken mislukt:", enrichError);
+      setEnrichMessage("Verrijken is niet gelukt. Probeer het later opnieuw.");
+    } finally {
+      setEnriching(false);
+    }
+  }
 
   const slides: Slide[] = useMemo(() => {
     if (!data || !data.hasData) {
@@ -225,6 +311,26 @@ export default function WrappedPage() {
       });
     }
 
+    if (data.avgDistanceKm > 0) {
+      result.push({
+        emoji: "📊",
+        title: "Gemiddelde ritlengte",
+        big: `${data.avgDistanceKm} km`,
+        sub: "per rit, over het hele jaar",
+        gradient: "from-cyan-600 via-sky-700 to-blue-800",
+      });
+    }
+
+    if (data.favoriteSegment) {
+      result.push({
+        emoji: "🚵",
+        title: "Favoriete klim of stuk",
+        big: data.favoriteSegment.name,
+        sub: `${data.favoriteSegment.count}x bereden Strava-segment`,
+        gradient: "from-green-600 via-emerald-700 to-teal-800",
+      });
+    }
+
     if (stops?.favoriteStop) {
       result.push({
         emoji: "☕",
@@ -232,6 +338,32 @@ export default function WrappedPage() {
         big: stops.favoriteStop.name,
         sub: `${stops.favoriteStop.count}x hier gestopt onderweg`,
         gradient: "from-amber-700 via-orange-800 to-yellow-900",
+      });
+    }
+
+    if (stops?.totalStops > 0) {
+      result.push({
+        emoji: "🅿️",
+        title: "Onderweg gestopt",
+        big: `${stops.totalStops}x`,
+        sub:
+          stops.totalStopsWithPoi > 0
+            ? `waarvan ${stops.totalStopsWithPoi}x bij een herkenbare plek`
+            : "even pauze onderweg",
+        gradient: "from-stone-600 via-neutral-700 to-zinc-800",
+      });
+    }
+
+    if (stops?.longestStop) {
+      const minutes = Math.round(stops.longestStop.durationSeconds / 60);
+      result.push({
+        emoji: "😴",
+        title: "Langste pauze",
+        big: `${minutes} min`,
+        sub: stops.longestStop.poiName
+          ? `bij ${stops.longestStop.poiName}`
+          : "ergens onderweg",
+        gradient: "from-indigo-700 via-violet-800 to-purple-900",
       });
     }
 
@@ -300,6 +432,30 @@ export default function WrappedPage() {
         <p className="mt-1 text-neutral-400">
           Jouw fietsjaar in een notendop, gebaseerd op je Strava-ritten.
         </p>
+
+        {!loading &&
+          !error &&
+          ((remainingToEnrich ?? 0) > 0 || (remainingStreams ?? 0) > 0 || enrichMessage) && (
+            <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3 text-sm">
+              <span className="text-neutral-400">
+                Sommige ritten missen nog details (cafés, segmenten, kudos) — dit
+                vult zich geleidelijk aan.
+              </span>
+
+              <button
+                type="button"
+                onClick={handleEnrichMore}
+                disabled={enriching}
+                className="rounded-lg bg-[#d59a57] px-3 py-1.5 text-sm font-medium text-neutral-950 hover:opacity-90 disabled:opacity-50"
+              >
+                {enriching ? "Bezig..." : "🔄 Verrijk nu"}
+              </button>
+
+              {enrichMessage && (
+                <span className="text-neutral-500">{enrichMessage}</span>
+              )}
+            </div>
+          )}
 
         {loading ? (
           <p className="mt-8 text-sm text-neutral-400">Wrapped laden...</p>

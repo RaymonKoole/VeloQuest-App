@@ -246,6 +246,39 @@ export async function GET(request: NextRequest) {
 
     const totalKudos = rides.reduce((sum, r: any) => sum + (r.kudos_count || 0), 0);
     const totalCalories = rides.reduce((sum, r: any) => sum + (r.calories || 0), 0);
+    const avgDistanceKm =
+      rides.length > 0 ? Math.round((totalDistance / rides.length / 1000) * 10) / 10 : 0;
+
+    let favoriteSegment: { name: string; count: number } | null = null;
+
+    if (activityIds.length > 0) {
+      const { data: segmentEfforts } = await supabaseAdmin
+        .from("activity_segment_efforts")
+        .select("segment_name")
+        .eq("user_id", user.id)
+        .not("segment_name", "is", null);
+
+      const segmentCounts = new Map<string, number>();
+
+      for (const effort of segmentEfforts || []) {
+        if (!effort.segment_name) {
+          continue;
+        }
+
+        segmentCounts.set(
+          effort.segment_name,
+          (segmentCounts.get(effort.segment_name) || 0) + 1
+        );
+      }
+
+      const topSegment = Array.from(segmentCounts.entries()).sort(
+        (a, b) => b[1] - a[1]
+      )[0];
+
+      favoriteSegment = topSegment
+        ? { name: topSegment[0], count: topSegment[1] }
+        : null;
+    }
 
     return NextResponse.json({
       hasData: true,
@@ -285,6 +318,8 @@ export async function GET(request: NextRequest) {
       prCount: prCount || 0,
       totalKudos: Math.round(totalKudos),
       totalCalories: Math.round(totalCalories),
+      avgDistanceKm,
+      favoriteSegment,
     });
   } catch (error) {
     console.error("Wrapped API error:", error);

@@ -11,7 +11,7 @@ import { fetchActivityStreams } from "@/lib/strava/fetchActivityStreams";
 // Bij een eerste sync na deze update kan de "hele rithistorie" als nieuw gelden.
 // Verwerk daarom per sync-aanroep maar een beperkt aantal ritten met extra
 // Strava-aanroepen (detail + streams), de rest volgt geleidelijk bij volgende syncs.
-const MAX_ENRICH_PER_SYNC = 8;
+const MAX_ENRICH_PER_SYNC = 15;
 const ENRICH_DELAY_MS = 300;
 
 export const maxDuration = 30;
