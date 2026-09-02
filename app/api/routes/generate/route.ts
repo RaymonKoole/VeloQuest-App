@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { forwardGeocode } from "@/lib/geocode/forwardGeocode";
 import { fetchRoadGraph, nearestNode } from "@/lib/routes/osmGraph";
-import { markRiddenEdges, generateLoopRoute, densifyPoints } from "@/lib/routes/routeGenerator";
+import {
+  markRiddenEdges,
+  generateLoopRoute,
+  generatePointToPointRoute,
+  densifyPoints,
+} from "@/lib/routes/routeGenerator";
 import { decodePolyline } from "@/lib/routes/decodePolyline";
 import { haversineDistanceMeters } from "@/lib/routes/haversine";
 
@@ -40,6 +45,8 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const startAddress = typeof body.startAddress === "string" ? body.startAddress.trim() : "";
+    const endAddress = typeof body.endAddress === "string" ? body.endAddress.trim() : "";
+    const isPointToPoint = endAddress.length > 0;
     const distanceKm = Number(body.distanceKm);
     const desiredNewKm = body.desiredNewKm !== undefined && body.desiredNewKm !== ""
       ? Number(body.desiredNewKm)
@@ -53,7 +60,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!distanceKm || distanceKm < 1 || distanceKm > 150) {
+    // Bij een rondje (start = eindpunt) bepaalt de gevraagde afstand hoe lang
+    // de lus wordt; bij een route van A naar B is de afstand een gevolg van
+    // de kortste-pad-berekening en niet nodig als invoer.
+    if (!isPointToPoint && (!distanceKm || distanceKm < 1 || distanceKm > 150)) {
       return NextResponse.json(
         { error: "Geef een geldige afstand op (1-150 km)." },
         { status: 400 }
@@ -81,9 +91,11 @@ export async function POST(request: NextRequest) {
     const targetBearingDeg = DIRECTION_BEARINGS[direction];
 
     // Neutral default is roughly half the route being "new"; scale the novelty
-    // weight up or down from there based on what the user asked for.
+    // weight up or down from there based on what the user asked for. Alleen
+    // relevant voor de rondje-modus — de van-A-naar-B-modus gebruikt een eigen,
+    // simpelere noveltyWeight-fractie (zie generatePointToPointRoute).
     const noveltyWeight =
-      desiredNewKm !== null
+      !isPointToPoint && desiredNewKm !== null
         ? Math.min(2000, Math.max(50, 400 * (desiredNewKm / (distanceKm * 0.5))))
         : 400;
 
@@ -109,12 +121,13 @@ export async function POST(request: NextRequest) {
       (a, b) => b[1] - a[1]
     )[0]?.[0];
 
-    const geocodeQuery =
-      startAddress.includes(",") || !mostCommonPlace
-        ? startAddress
-        : `${startAddress}, ${mostCommonPlace}`;
+    function withCityBias(address: string) {
+      return address.includes(",") || !mostCommonPlace
+        ? address
+        : `${address}, ${mostCommonPlace}`;
+    }
 
-    const geocoded = await forwardGeocode(geocodeQuery);
+    const geocoded = await forwardGeocode(withCityBias(startAddress));
 
     if (!geocoded) {
       return NextResponse.json(
@@ -123,20 +136,59 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const radiusMeters = Math.min(
-      8000,
-      Math.max(1500, distanceKm * 1000 * 0.35)
-    );
+    let endGeocoded: Awaited<ReturnType<typeof forwardGeocode>> = null;
 
-    const graph = await fetchRoadGraph(
-      geocoded.lat,
-      geocoded.lng,
-      radiusMeters
-    );
+    if (isPointToPoint) {
+      endGeocoded = await forwardGeocode(withCityBias(endAddress));
+
+      if (!endGeocoded) {
+        return NextResponse.json(
+          { error: "Eindadres kon niet worden gevonden. Probeer het specifieker (bijv. met plaatsnaam)." },
+          { status: 404 }
+        );
+      }
+    }
+
+    let centerLat = geocoded.lat;
+    let centerLng = geocoded.lng;
+    let radiusMeters: number;
+
+    if (isPointToPoint && endGeocoded) {
+      const directDistanceM = haversineDistanceMeters(
+        geocoded.lat,
+        geocoded.lng,
+        endGeocoded.lat,
+        endGeocoded.lng
+      );
+
+      // Begrensd zodat de Overpass-query behapbaar blijft (zie de eerdere
+      // Overpass-stabiliteitsproblemen dit seizoen).
+      const MAX_POINT_TO_POINT_RADIUS_M = 12000;
+      const neededRadius = directDistanceM / 2 + 1500;
+
+      if (neededRadius > MAX_POINT_TO_POINT_RADIUS_M) {
+        return NextResponse.json(
+          {
+            error: `Start- en eindadres liggen te ver uit elkaar voor deze functie (max ongeveer ${Math.round(
+              (MAX_POINT_TO_POINT_RADIUS_M * 2) / 1000
+            )} km hemelsbreed).`,
+          },
+          { status: 400 }
+        );
+      }
+
+      centerLat = (geocoded.lat + endGeocoded.lat) / 2;
+      centerLng = (geocoded.lng + endGeocoded.lng) / 2;
+      radiusMeters = Math.max(1500, neededRadius);
+    } else {
+      radiusMeters = Math.min(8000, Math.max(1500, distanceKm * 1000 * 0.35));
+    }
+
+    const graph = await fetchRoadGraph(centerLat, centerLng, radiusMeters);
 
     if (graph.nodes.size === 0) {
       return NextResponse.json(
-        { error: "Geen wegen gevonden rond dit startpunt." },
+        { error: "Geen wegen gevonden rond dit gebied." },
         { status: 404 }
       );
     }
@@ -155,8 +207,8 @@ export async function POST(request: NextRequest) {
     for (const activity of rideActivities || []) {
       if (
         haversineDistanceMeters(
-          geocoded.lat,
-          geocoded.lng,
+          centerLat,
+          centerLng,
           activity.start_lat,
           activity.start_lng
         ) > bufferMeters
@@ -182,14 +234,43 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = generateLoopRoute(graph, startNode.id, distanceKm * 1000, {
-      noveltyWeight,
-      targetBearingDeg,
-    });
+    let result: {
+      points: [number, number][];
+      distanceM: number;
+      riddenM: number;
+      newM: number;
+    } | null;
+
+    if (isPointToPoint && endGeocoded) {
+      const endNode = nearestNode(graph, endGeocoded.lat, endGeocoded.lng);
+
+      if (!endNode) {
+        return NextResponse.json(
+          { error: "Geen bruikbaar eindpunt gevonden op het wegennet." },
+          { status: 404 }
+        );
+      }
+
+      result = generatePointToPointRoute(graph, startNode.id, endNode.id, {
+        noveltyWeight: 0.35,
+      });
+
+      if (!result) {
+        return NextResponse.json(
+          { error: "Geen route gevonden tussen start- en eindadres. Probeer andere adressen." },
+          { status: 422 }
+        );
+      }
+    } else {
+      result = generateLoopRoute(graph, startNode.id, distanceKm * 1000, {
+        noveltyWeight,
+        targetBearingDeg,
+      });
+    }
 
     if (result.points.length < 2) {
       return NextResponse.json(
-        { error: "Kon geen route genereren rond dit startpunt. Probeer een ander adres of een andere afstand." },
+        { error: "Kon geen route genereren. Probeer een ander adres of een andere afstand." },
         { status: 422 }
       );
     }
@@ -200,6 +281,7 @@ export async function POST(request: NextRequest) {
       newKm: Math.round((result.newM / 1000) * 10) / 10,
       riddenKm: Math.round((result.riddenM / 1000) * 10) / 10,
       startDisplayName: geocoded.displayName,
+      endDisplayName: endGeocoded?.displayName ?? null,
     });
   } catch (error) {
     console.error("Route generatie error:", error);
