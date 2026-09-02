@@ -156,7 +156,14 @@ export default function SegmentsPage() {
                         {popularity && (
                           <p className="mt-1 text-xs text-neutral-600">
                             🌍 {popularity}
-                            {segment.starCount ? ` · ⭐ ${segment.starCount}` : ""}
+                            {segment.starCount ? (
+                              <span title="Aantal Strava-gebruikers dat dit segment als favoriet heeft gemarkeerd (een 'ster' geven, vergelijkbaar met bookmarken)">
+                                {" "}
+                                · ⭐ {segment.starCount} favoriet
+                              </span>
+                            ) : (
+                              ""
+                            )}
                           </p>
                         )}
                       </div>
@@ -233,10 +240,12 @@ export default function SegmentsPage() {
 
               <p className="mt-2 text-xs text-neutral-600">
                 "Populariteit" is het aantal unieke Strava-gebruikers dat dit
-                segment ooit heeft gereden — een exacte ranglijstpositie of
-                top-% t.o.v. alle Strava-gebruikers is via de beschikbare
-                Strava-API niet betrouwbaar op te vragen (die ranglijst-functie
-                is voor de meeste apps afgeschermd). 👑 toont wel je beste
+                segment ooit heeft gereden. ⭐ is het aantal Strava-gebruikers
+                dat het segment als favoriet heeft gemarkeerd (vergelijkbaar
+                met bookmarken). Een exacte ranglijstpositie of top-%
+                t.o.v. alle Strava-gebruikers is via de beschikbare Strava-API
+                niet betrouwbaar op te vragen (die ranglijst-functie is voor de
+                meeste apps afgeschermd) — 👑 toont wel je beste
                 top-10-notering (KOM/QOM) op een segment, wanneer je die ooit
                 had.
               </p>
