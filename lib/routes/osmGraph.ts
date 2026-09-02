@@ -18,6 +18,10 @@ export type RoadGraph = {
   adjacency: Map<number, GraphEdge[]>;
 };
 
+// Alleen wegen en fietspaden die geschikt zijn voor racefietsen/wielrennen.
+// "track" (landbouw-/bospaden) en "path" (generieke, vaak onverharde paden)
+// zijn bewust weggelaten — dat zijn de OSM-tags die in de praktijk bijna
+// altijd gravel- of grindpaden opleveren.
 const BIKE_HIGHWAY_TYPES = [
   "primary",
   "primary_link",
@@ -29,8 +33,6 @@ const BIKE_HIGHWAY_TYPES = [
   "residential",
   "living_street",
   "service",
-  "track",
-  "path",
   "cycleway",
 ].join("|");
 
