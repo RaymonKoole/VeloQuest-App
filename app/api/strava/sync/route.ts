@@ -14,8 +14,18 @@ import { fetchActivityStreams } from "@/lib/strava/fetchActivityStreams";
 const MAX_ENRICH_PER_SYNC = 15;
 const ENRICH_DELAY_MS = 300;
 
+// Vercel kapt de functie hard af na maxDuration (30s) en geeft dan geen JSON
+// terug maar een platform-foutpagina, wat bij de gebruiker als een cryptische
+// "Verrijken is niet gelukt" landt. Stop daarom zelf ruim op tijd met nieuwe
+// werk oppakken, zodat er altijd een geldige JSON-respons terugkomt — de rest
+// volgt gewoon bij de volgende sync (al opgeslagen ritten worden niet
+// opnieuw verwerkt).
+const SYNC_TIME_BUDGET_MS = 20000;
+
 export const maxDuration = 30;
 export async function POST(request: NextRequest) {
+  const syncStartedAt = Date.now();
+
   try {
     const authorization = request.headers.get("authorization");
 
@@ -74,6 +84,13 @@ export async function POST(request: NextRequest) {
     let page = 1;
 
     while (true) {
+      if (Date.now() - syncStartedAt > SYNC_TIME_BUDGET_MS) {
+        console.warn(
+          `Activiteitenlijst ophalen afgebroken wegens tijdslimiet op pagina ${page}`
+        );
+        break;
+      }
+
       const response = await fetch(
         `https://www.strava.com/api/v3/athlete/activities?per_page=100&page=${page}`,
         {
@@ -212,17 +229,25 @@ const needsEnrichment = savedActivities.filter(
   (activity) => !enrichedDbIds.has(activity.dbId)
 );
 
-enrichedThisSync = Math.min(needsEnrichment.length, MAX_ENRICH_PER_SYNC);
-remainingToEnrich = Math.max(needsEnrichment.length - MAX_ENRICH_PER_SYNC, 0);
+let actuallyEnriched = 0;
 
 // Verrijk per sync-aanroep maar een beperkt aantal ritten met extra
 // Strava-aanroepen (detail + streams) — voorkomt een piek aan aanvragen
 // bij gebruikers met een grote bestaande rithistorie. De rest volgt bij
-// volgende syncs, inclusief oude ritten.
-for (const { dbId, stravaActivityId } of needsEnrichment.slice(
-  0,
-  MAX_ENRICH_PER_SYNC
-)) {
+// volgende syncs, inclusief oude ritten. Stop ook vroegtijdig als het
+// tijdsbudget van deze aanroep bijna op is.
+for (const { dbId, stravaActivityId } of needsEnrichment) {
+  if (actuallyEnriched >= MAX_ENRICH_PER_SYNC) {
+    break;
+  }
+
+  if (Date.now() - syncStartedAt > SYNC_TIME_BUDGET_MS) {
+    console.warn(
+      `Verrijken afgebroken wegens tijdslimiet na ${actuallyEnriched} ritten`
+    );
+    break;
+  }
+
   try {
     const detail = await fetchActivityDetail(stravaActivityId, stravaAccessToken);
 
@@ -290,8 +315,13 @@ for (const { dbId, stravaActivityId } of needsEnrichment.slice(
     );
   }
 
+  actuallyEnriched++;
+
   await new Promise((resolve) => setTimeout(resolve, ENRICH_DELAY_MS));
 }
+
+enrichedThisSync = actuallyEnriched;
+remainingToEnrich = Math.max(needsEnrichment.length - actuallyEnriched, 0);
 
       if (upsertError) {
         console.error("Strava activities database error:", upsertError);
