@@ -13,8 +13,11 @@ export async function findNearbyPoi(
   // Laat een Overpass-storing hier bewust doorgooien (i.p.v. null teruggeven)
   // zodat de aanroeper kan onderscheiden tussen "geen café gevonden" en
   // "Overpass is niet bereikbaar" — bij dat laatste kan de aanroeper stoppen
-  // met verdere pogingen i.p.v. het tijdsbudget te verspillen.
-  const data = await queryOverpass(query, 6000);
+  // met verdere pogingen i.p.v. het tijdsbudget te verspillen. Totaalbudget
+  // bewust kleiner dan bij fetchRoadGraph: dit wordt aangeroepen in een lus
+  // (meerdere pauzes per aanvraag) en een POI-lookup is een veel lichtere
+  // query dan de wegengraaf.
+  const data = await queryOverpass(query, 8000);
 
   const nodes = (data.elements || []).filter(
     (element: any) => element.type === "node" && element.tags?.name
