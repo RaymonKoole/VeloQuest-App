@@ -15,10 +15,22 @@ const OVERPASS_ENDPOINTS = [
 // "kon geen verbinding maken".
 const USER_AGENT = "VeloQuest-App (https://veloquest-app.vercel.app)";
 
-export async function queryOverpass(query: string, timeoutMs = 8000): Promise<any> {
+export async function queryOverpass(query: string, totalBudgetMs = 22000): Promise<any> {
   let lastErrorMessage = "onbekende fout";
+  // Deel het totale tijdsbudget over de mirrors, i.p.v. elke mirror hetzelfde
+  // vaste (korte) budget geven: de eerste, doorgaans snelste mirror krijgt zo
+  // het gros van de tijd — genoeg voor een zwaardere/tragere query die wél
+  // gewoon zou zijn geslaagd — en als die toch echt faalt, blijft er nog tijd
+  // over voor een tweede poging elders.
+  const deadline = Date.now() + totalBudgetMs;
 
   for (const endpoint of OVERPASS_ENDPOINTS) {
+    const remainingMs = deadline - Date.now();
+
+    if (remainingMs < 2000) {
+      break;
+    }
+
     let response: Response;
 
     try {
@@ -29,11 +41,15 @@ export async function queryOverpass(query: string, timeoutMs = 8000): Promise<an
           "User-Agent": USER_AGENT,
         },
         body: `data=${encodeURIComponent(query)}`,
-        signal: AbortSignal.timeout(timeoutMs),
+        signal: AbortSignal.timeout(remainingMs),
       });
     } catch (fetchError) {
+      const isTimeout =
+        fetchError instanceof Error &&
+        (fetchError.name === "TimeoutError" || fetchError.name === "AbortError");
+
       console.error(`Overpass-fetch mislukt (${endpoint}):`, fetchError);
-      lastErrorMessage = "kon geen verbinding maken";
+      lastErrorMessage = isTimeout ? "duurde te lang" : "kon geen verbinding maken";
       continue;
     }
 

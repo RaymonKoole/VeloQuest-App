@@ -73,9 +73,10 @@ out body;
 out skel qt;
 `;
 
-  // 3 mirrors x 8s = 24s worst case, ruim binnen het maxDuration-budget (30s)
-  // van de /api/routes/generate-route, met marge voor de rest van het werk.
-  const data = await queryOverpass(query, 8000);
+  // Totaalbudget over alle mirrors samen (adaptief verdeeld, zie
+  // queryOverpass) — ruim binnen het maxDuration-budget (30s) van de
+  // /api/routes/generate-route, met marge voor de rest van het werk.
+  const data = await queryOverpass(query, 22000);
 
   const nodes = new Map<number, GraphNode>();
   const adjacency = new Map<number, GraphEdge[]>();
