@@ -10,14 +10,11 @@ export async function findNearbyPoi(
 ) {
   const query = `[out:json][timeout:15];(node["amenity"~"^(${POI_TYPES})$"](around:${radiusMeters},${lat},${lng}););out body;`;
 
-  let data: any;
-
-  try {
-    data = await queryOverpass(query, 15000);
-  } catch (overpassError) {
-    console.error("Overpass POI-lookup mislukt:", overpassError);
-    return null;
-  }
+  // Laat een Overpass-storing hier bewust doorgooien (i.p.v. null teruggeven)
+  // zodat de aanroeper kan onderscheiden tussen "geen café gevonden" en
+  // "Overpass is niet bereikbaar" — bij dat laatste kan de aanroeper stoppen
+  // met verdere pogingen i.p.v. het tijdsbudget te verspillen.
+  const data = await queryOverpass(query, 6000);
 
   const nodes = (data.elements || []).filter(
     (element: any) => element.type === "node" && element.tags?.name

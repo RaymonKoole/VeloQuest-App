@@ -225,6 +225,26 @@ export default function WrappedPage() {
       });
     }
 
+    if (data.avgDistanceKm > 0) {
+      result.push({
+        emoji: "📊",
+        title: "Gemiddelde ritlengte",
+        big: `${data.avgDistanceKm} km`,
+        sub: "per rit, over het hele jaar",
+        gradient: "from-cyan-600 via-sky-700 to-blue-800",
+      });
+    }
+
+    if (data.favoriteSegment) {
+      result.push({
+        emoji: "🚵",
+        title: "Favoriete klim of stuk",
+        big: data.favoriteSegment.name,
+        sub: `${data.favoriteSegment.count}x bereden Strava-segment`,
+        gradient: "from-green-600 via-emerald-700 to-teal-800",
+      });
+    }
+
     if (stops?.favoriteStop) {
       result.push({
         emoji: "☕",
@@ -232,6 +252,32 @@ export default function WrappedPage() {
         big: stops.favoriteStop.name,
         sub: `${stops.favoriteStop.count}x hier gestopt onderweg`,
         gradient: "from-amber-700 via-orange-800 to-yellow-900",
+      });
+    }
+
+    if (stops?.totalStops > 0) {
+      result.push({
+        emoji: "🅿️",
+        title: "Onderweg gestopt",
+        big: `${stops.totalStops}x`,
+        sub:
+          stops.totalStopsWithPoi > 0
+            ? `waarvan ${stops.totalStopsWithPoi}x bij een herkenbare plek`
+            : "even pauze onderweg",
+        gradient: "from-stone-600 via-neutral-700 to-zinc-800",
+      });
+    }
+
+    if (stops?.longestStop) {
+      const minutes = Math.round(stops.longestStop.durationSeconds / 60);
+      result.push({
+        emoji: "😴",
+        title: "Langste pauze",
+        big: `${minutes} min`,
+        sub: stops.longestStop.poiName
+          ? `bij ${stops.longestStop.poiName}`
+          : "ergens onderweg",
+        gradient: "from-indigo-700 via-violet-800 to-purple-900",
       });
     }
 

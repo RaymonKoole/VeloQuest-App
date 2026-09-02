@@ -62,6 +62,12 @@ export async function GET(request: NextRequest) {
     }
 
     let poiLookupsUsed = 0;
+    // Als Overpass een keer volledig onbereikbaar blijkt (alle mirrors falen),
+    // heeft verder proberen deze aanvraag geen zin en kost het alleen tijd
+    // (die op kan raken binnen het maxDuration-budget). Sla POI-lookups dan
+    // over voor de rest van deze aanvraag; een volgende aanvraag probeert het
+    // gewoon weer opnieuw.
+    let overpassUnavailable = false;
 
     for (const streamRow of unprocessedStreams || []) {
       const stops = detectStops({
@@ -74,15 +80,19 @@ export async function GET(request: NextRequest) {
       for (const stop of stops) {
         let poi: { name: string; type: string } | null = null;
 
-        if (poiLookupsUsed < MAX_POI_LOOKUPS_PER_REQUEST) {
+        if (poiLookupsUsed < MAX_POI_LOOKUPS_PER_REQUEST && !overpassUnavailable) {
           try {
             poi = await findNearbyPoi(stop.lat, stop.lng);
           } catch (poiError) {
-            console.error("POI-lookup mislukt:", poiError);
+            console.error("POI-lookup mislukt (Overpass waarschijnlijk niet bereikbaar):", poiError);
+            overpassUnavailable = true;
           }
 
           poiLookupsUsed++;
-          await new Promise((resolve) => setTimeout(resolve, POI_LOOKUP_DELAY_MS));
+
+          if (!overpassUnavailable) {
+            await new Promise((resolve) => setTimeout(resolve, POI_LOOKUP_DELAY_MS));
+          }
         }
 
         await supabaseAdmin.from("activity_stops").insert({
@@ -104,14 +114,23 @@ export async function GET(request: NextRequest) {
 
     const { data: allStops } = await supabaseAdmin
       .from("activity_stops")
-      .select("poi_name, poi_type")
-      .eq("user_id", user.id)
-      .not("poi_name", "is", null);
+      .select("duration_seconds, poi_name")
+      .eq("user_id", user.id);
 
     const poiCounts = new Map<string, number>();
+    let longestStop: { durationSeconds: number; poiName: string | null } | null = null;
 
     for (const stop of allStops || []) {
-      poiCounts.set(stop.poi_name, (poiCounts.get(stop.poi_name) || 0) + 1);
+      if (stop.poi_name) {
+        poiCounts.set(stop.poi_name, (poiCounts.get(stop.poi_name) || 0) + 1);
+      }
+
+      if (!longestStop || (stop.duration_seconds || 0) > longestStop.durationSeconds) {
+        longestStop = {
+          durationSeconds: stop.duration_seconds || 0,
+          poiName: stop.poi_name ?? null,
+        };
+      }
     }
 
     const favoriteStop = Array.from(poiCounts.entries()).sort(
@@ -122,7 +141,10 @@ export async function GET(request: NextRequest) {
       favoriteStop: favoriteStop
         ? { name: favoriteStop[0], count: favoriteStop[1] }
         : null,
-      totalStopsWithPoi: (allStops || []).length,
+      totalStopsWithPoi: (allStops || []).filter((stop) => stop.poi_name).length,
+      totalStops: (allStops || []).length,
+      longestStop:
+        longestStop && longestStop.durationSeconds > 0 ? longestStop : null,
     });
   } catch (error) {
     console.error("Stops API error:", error);

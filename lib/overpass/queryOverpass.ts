@@ -8,7 +8,14 @@ const OVERPASS_ENDPOINTS = [
   "https://overpass.openstreetmap.ru/api/interpreter",
 ];
 
-export async function queryOverpass(query: string, timeoutMs = 20000): Promise<any> {
+// Overpass-mirrors verwachten volgens hun eigen usage policy een duidelijke
+// User-Agent; verzoeken zonder identificatie worden door sommige (drukbezette)
+// mirrors stilzwijgend geweigerd, vooral vanaf gedeelde cloud-IP's zoals die
+// van Vercel. Zonder deze header zagen we alle mirrors direct falen op
+// "kon geen verbinding maken".
+const USER_AGENT = "VeloQuest-App (https://veloquest-app.vercel.app)";
+
+export async function queryOverpass(query: string, timeoutMs = 8000): Promise<any> {
   let lastErrorMessage = "onbekende fout";
 
   for (const endpoint of OVERPASS_ENDPOINTS) {
@@ -19,6 +26,7 @@ export async function queryOverpass(query: string, timeoutMs = 20000): Promise<a
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
+          "User-Agent": USER_AGENT,
         },
         body: `data=${encodeURIComponent(query)}`,
         signal: AbortSignal.timeout(timeoutMs),
