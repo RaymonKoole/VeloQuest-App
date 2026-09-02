@@ -103,12 +103,19 @@ export async function POST(request: NextRequest) {
       const activities = await response.json();
 
       if (!response.ok) {
-        console.error("Strava activities error:", activities);
+        console.error("Strava activities error:", response.status, activities);
 
-        return NextResponse.json(
-          { error: "Strava-activiteiten konden niet worden opgehaald." },
-          { status: response.status }
-        );
+        let message = "Strava-activiteiten konden niet worden opgehaald.";
+
+        if (response.status === 429) {
+          message =
+            "Strava heeft tijdelijk een limiet bereikt op het aantal aanvragen (dit gebeurt sneller dan je zou denken, elke sync doet best veel Strava-aanroepen). Probeer het over een kwartier opnieuw.";
+        } else if (response.status === 401) {
+          message =
+            "De Strava-koppeling lijkt niet meer geldig. Koppel Strava opnieuw via het dashboard.";
+        }
+
+        return NextResponse.json({ error: message }, { status: response.status });
       }
 
       if (!Array.isArray(activities) || activities.length === 0) {
