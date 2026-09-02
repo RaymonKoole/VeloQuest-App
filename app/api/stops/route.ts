@@ -112,6 +112,12 @@ export async function GET(request: NextRequest) {
         .eq("activity_id", streamRow.activity_id);
     }
 
+    const { count: remainingStreams } = await supabaseAdmin
+      .from("activity_streams")
+      .select("activity_id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("stops_processed", false);
+
     const { data: allStops } = await supabaseAdmin
       .from("activity_stops")
       .select("duration_seconds, poi_name")
@@ -145,6 +151,7 @@ export async function GET(request: NextRequest) {
       totalStops: (allStops || []).length,
       longestStop:
         longestStop && longestStop.durationSeconds > 0 ? longestStop : null,
+      remainingStreams: remainingStreams || 0,
     });
   } catch (error) {
     console.error("Stops API error:", error);
