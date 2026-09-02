@@ -444,6 +444,12 @@ if (distinctSegmentIds.length > 0 && Date.now() - syncStartedAt < SYNC_TIME_BUDG
               athlete_count: detail.athlete_count ?? null,
               effort_count: detail.effort_count ?? null,
               star_count: detail.star_count ?? null,
+              // Volledige ruwe Strava-respons erbij bewaren: we zijn er niet
+              // zeker van onder welke veldnaam (of dat het via de publieke
+              // API überhaupt beschikbaar is) Strava een "geverifieerd
+              // segment"-status blootstelt, dus zo kunnen we dat na een sync
+              // daadwerkelijk controleren i.p.v. gokken.
+              raw: detail,
             },
             { onConflict: "segment_id" }
           );
