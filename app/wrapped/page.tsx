@@ -128,7 +128,19 @@ export default function WrappedPage() {
         method: "POST",
         headers,
       });
-      const syncJson = await syncResponse.json();
+
+      let syncJson: any;
+
+      try {
+        syncJson = await syncResponse.json();
+      } catch (parseError) {
+        // Kan gebeuren als de server de tijdslimiet overschrijdt en een
+        // platform-foutpagina teruggeeft in plaats van JSON.
+        setEnrichMessage(
+          "De server deed er te lang over. Probeer het over een moment nog eens."
+        );
+        return;
+      }
 
       if (!syncResponse.ok) {
         setEnrichMessage(syncJson.error || "Verrijken is niet gelukt.");
