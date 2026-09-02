@@ -148,6 +148,58 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Herbekijk met eventueel overgebleven POI-budget ook een aantal eerder
+    // gecontroleerde pauzes zonder gevonden café — bijvoorbeeld omdat de
+    // zoekstraal destijds kleiner was. Dit is een beste-poging: sommige
+    // pauzes hebben simpelweg geen café in de buurt, dus dit hoeft niet per
+    // se naar 0 te gaan.
+    if (poiLookupsUsed < MAX_POI_LOOKUPS_PER_REQUEST && !overpassUnavailable) {
+      const { data: missingPoiStops } = await supabaseAdmin
+        .from("activity_stops")
+        .select("id, lat, lng")
+        .eq("user_id", user.id)
+        .is("poi_name", null)
+        .limit(MAX_POI_LOOKUPS_PER_REQUEST - poiLookupsUsed);
+
+      for (const stopRow of missingPoiStops || []) {
+        if (poiLookupsUsed >= MAX_POI_LOOKUPS_PER_REQUEST || overpassUnavailable) {
+          break;
+        }
+
+        let poi: { name: string; type: string } | null = null;
+
+        try {
+          poi = await findNearbyPoi(stopRow.lat, stopRow.lng);
+        } catch (poiError) {
+          console.error(
+            "Herbekijken van pauze zonder café mislukt (Overpass waarschijnlijk niet bereikbaar):",
+            poiError
+          );
+          overpassUnavailable = true;
+        }
+
+        poiLookupsUsed++;
+
+        if (!overpassUnavailable) {
+          await new Promise((resolve) => setTimeout(resolve, POI_LOOKUP_DELAY_MS));
+        }
+
+        if (poi) {
+          const { error: updateError } = await supabaseAdmin
+            .from("activity_stops")
+            .update({ poi_name: poi.name, poi_type: poi.type })
+            .eq("id", stopRow.id);
+
+          if (updateError) {
+            console.error(
+              `Bijwerken van pauze ${stopRow.id} mislukt:`,
+              updateError
+            );
+          }
+        }
+      }
+    }
+
     const { count: remainingStreams } = await supabaseAdmin
       .from("activity_streams")
       .select("activity_id", { count: "exact", head: true })

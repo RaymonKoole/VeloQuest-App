@@ -6,7 +6,7 @@ const POI_TYPES = ["cafe", "restaurant", "fast_food", "bar", "pub"].join("|");
 export async function findNearbyPoi(
   lat: number,
   lng: number,
-  radiusMeters = 60
+  radiusMeters = 100
 ) {
   const query = `[out:json][timeout:15];(node["amenity"~"^(${POI_TYPES})$"](around:${radiusMeters},${lat},${lng}););out body;`;
 
