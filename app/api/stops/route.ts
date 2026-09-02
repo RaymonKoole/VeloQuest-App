@@ -5,8 +5,8 @@ import { findNearbyPoi } from "@/lib/geocode/findNearbyPoi";
 
 export const maxDuration = 30;
 
-const MAX_ACTIVITIES_PER_REQUEST = 5;
-const MAX_POI_LOOKUPS_PER_REQUEST = 10;
+const MAX_ACTIVITIES_PER_REQUEST = 8;
+const MAX_POI_LOOKUPS_PER_REQUEST = 15;
 const POI_LOOKUP_DELAY_MS = 700;
 
 export async function GET(request: NextRequest) {
@@ -77,10 +77,29 @@ export async function GET(request: NextRequest) {
         moving: streamRow.moving || undefined,
       });
 
+      // Als een stop hier geen (geslaagde) POI-check kreeg — omdat het
+      // lookup-budget van deze aanvraag al op was, of omdat Overpass net
+      // onbereikbaar bleek — markeren we deze rit bewust niet als verwerkt,
+      // zodat een volgende aanvraag het opnieuw probeert i.p.v. de rit voor
+      // altijd zonder café-info te laten.
+      let rowFullyProcessed = true;
+      const stopRows: {
+        activity_id: number;
+        user_id: string;
+        lat: number;
+        lng: number;
+        duration_seconds: number;
+        poi_name: string | null;
+        poi_type: string | null;
+      }[] = [];
+
       for (const stop of stops) {
         let poi: { name: string; type: string } | null = null;
+        let attempted = false;
 
         if (poiLookupsUsed < MAX_POI_LOOKUPS_PER_REQUEST && !overpassUnavailable) {
+          attempted = true;
+
           try {
             poi = await findNearbyPoi(stop.lat, stop.lng);
           } catch (poiError) {
@@ -95,7 +114,11 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        await supabaseAdmin.from("activity_stops").insert({
+        if (!attempted || overpassUnavailable) {
+          rowFullyProcessed = false;
+        }
+
+        stopRows.push({
           activity_id: streamRow.activity_id,
           user_id: user.id,
           lat: stop.lat,
@@ -106,10 +129,23 @@ export async function GET(request: NextRequest) {
         });
       }
 
+      // Vervang eerdere (mogelijk onvolledige) resultaten voor deze rit door
+      // de huidige, zodat een retry geen dubbele pauzes oplevert.
       await supabaseAdmin
-        .from("activity_streams")
-        .update({ stops_processed: true })
+        .from("activity_stops")
+        .delete()
         .eq("activity_id", streamRow.activity_id);
+
+      if (stopRows.length > 0) {
+        await supabaseAdmin.from("activity_stops").insert(stopRows);
+      }
+
+      if (rowFullyProcessed) {
+        await supabaseAdmin
+          .from("activity_streams")
+          .update({ stops_processed: true })
+          .eq("activity_id", streamRow.activity_id);
+      }
     }
 
     const { count: remainingStreams } = await supabaseAdmin
