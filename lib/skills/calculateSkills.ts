@@ -1,5 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 import { getSkillLevelFromXp } from "@/lib/progression/skillLevel";
+import { calculateLongestStreak } from "@/lib/stats/longestStreak";
+
+// Ritten die sneller dan dit gemiddelde zijn, tellen mee voor de Speed-skill.
+const SPEED_SKILL_THRESHOLD_KMH = 20;
 
 export async function calculateSkills(userId: string) {
   const supabaseAdmin = createClient(
@@ -11,7 +15,7 @@ export async function calculateSkills(userId: string) {
     await supabaseAdmin
       .from("strava_activities")
       .select(
-        "distance, total_elevation_gain, moving_time, activity_type"
+        "id, distance, total_elevation_gain, moving_time, activity_type, average_speed, city, country, start_date"
       )
       .eq("user_id", userId)
       .in("activity_type", ["Ride", "GravelRide"]);
@@ -20,33 +24,85 @@ export async function calculateSkills(userId: string) {
     throw new Error("Activiteiten konden niet worden opgehaald.");
   }
 
-  const totalDistance =
-    (activities || []).reduce(
-      (total, activity) => total + (activity.distance || 0),
-      0
-    ) / 1000;
+  const rides = activities || [];
 
-  const totalElevation =
-    (activities || []).reduce(
-      (total, activity) =>
-        total + (activity.total_elevation_gain || 0),
-      0
-    );
+  const totalDistance =
+    rides.reduce((total, activity) => total + (activity.distance || 0), 0) /
+    1000;
+
+  const totalElevation = rides.reduce(
+    (total, activity) => total + (activity.total_elevation_gain || 0),
+    0
+  );
 
   const totalMovingTimeMinutes =
-    (activities || []).reduce(
-      (total, activity) =>
-        total + (activity.moving_time || 0),
-      0
-    ) / 60;
+    rides.reduce((total, activity) => total + (activity.moving_time || 0), 0) /
+    60;
 
-  const totalRides = activities?.length || 0;
+  const totalRides = rides.length;
+
+  const gravelDistanceKm =
+    rides
+      .filter((activity) => activity.activity_type === "GravelRide")
+      .reduce((total, activity) => total + (activity.distance || 0), 0) / 1000;
+
+  const fastDistanceKm =
+    rides
+      .filter(
+        (activity) =>
+          ((activity.average_speed || 0) * 3.6) > SPEED_SKILL_THRESHOLD_KMH
+      )
+      .reduce((total, activity) => total + (activity.distance || 0), 0) / 1000;
+
+  const uniquePlaces = new Set(
+    rides
+      .filter((activity) => activity.city)
+      .map((activity) => `${activity.city}|${activity.country}`)
+  ).size;
+
+  const longestStreak = calculateLongestStreak(
+    rides.map((activity) => activity.start_date)
+  );
+
+  const rideIds = rides.map((activity) => activity.id);
+
+  const { count: segmentAttempts } =
+    rideIds.length > 0
+      ? await supabaseAdmin
+          .from("activity_segment_efforts")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId)
+      : { count: 0 };
+
+  const { count: prCount } =
+    rideIds.length > 0
+      ? await supabaseAdmin
+          .from("activity_segment_efforts")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .eq("pr_rank", 1)
+      : { count: 0 };
+
+  const { count: cafeStops } =
+    rideIds.length > 0
+      ? await supabaseAdmin
+          .from("activity_stops")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .not("poi_name", "is", null)
+      : { count: 0 };
 
   const skillXp = {
     Cycling: totalDistance,
     Climbing: totalElevation / 10,
     Endurance: totalMovingTimeMinutes / 10,
     Explorer: totalRides,
+    Speed: fastDistanceKm,
+    Racing: (segmentAttempts || 0) + (prCount || 0) * 5,
+    Adventure: gravelDistanceKm,
+    Navigator: uniquePlaces * 20,
+    Social: (cafeStops || 0) * 3,
+    Discipline: longestStreak * 100,
   };
 
   const { data: skills, error: skillsError } =
@@ -91,10 +147,11 @@ export async function calculateSkills(userId: string) {
     }
   }
 
-  return {
-    Cycling: Math.round(skillXp.Cycling * 100) / 100,
-    Climbing: Math.round(skillXp.Climbing * 100) / 100,
-    Endurance: Math.round(skillXp.Endurance * 100) / 100,
-    Explorer: Math.round(skillXp.Explorer * 100) / 100,
-  };
+  const rounded: Record<string, number> = {};
+
+  for (const [name, xp] of Object.entries(skillXp)) {
+    rounded[name] = Math.round(xp * 100) / 100;
+  }
+
+  return rounded;
 }
