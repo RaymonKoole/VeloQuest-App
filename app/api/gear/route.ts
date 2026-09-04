@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { getLevelFromXp } from "@/lib/xp/level";
+import { getUserLevels, isEligibleForGear } from "@/lib/gear/getUserLevels";
 
 export async function GET(request: NextRequest) {
   try {
@@ -54,39 +54,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { data: xpRows } = await supabaseAdmin
-      .from("activity_xp")
-      .select("total_xp")
-      .eq("user_id", user.id);
-
-    const totalXp = (xpRows || []).reduce(
-      (sum, row) => sum + (row.total_xp || 0),
-      0
-    );
-    const accountLevel = getLevelFromXp(totalXp).level;
-
-    const { data: skillDefRows } = await supabaseAdmin
-      .from("skills")
-      .select("id, name");
-
-    const skillNameById = new Map(
-      (skillDefRows || []).map((row) => [row.id, row.name])
-    );
-
-    const { data: skillRows } = await supabaseAdmin
-      .from("user_skills")
-      .select("skill_id, level")
-      .eq("user_id", user.id);
-
-    const skillLevelByName = new Map<string, number>();
-
-    for (const row of skillRows || []) {
-      const skillName = skillNameById.get(row.skill_id);
-
-      if (skillName) {
-        skillLevelByName.set(skillName, row.level);
-      }
-    }
+    const levels = await getUserLevels(supabaseAdmin, user.id);
+    const { accountLevel } = levels;
 
     const { data: ownedRows } = await supabaseAdmin
       .from("user_gear")
@@ -104,27 +73,21 @@ export async function GET(request: NextRequest) {
       (equippedRows || []).map((row) => [row.slot, row.item_id])
     );
 
-    const items = (gearItems || []).map((item) => {
-      const currentLevel = item.required_skill
-        ? skillLevelByName.get(item.required_skill) ?? 1
-        : accountLevel;
-
-      return {
-        id: item.id,
-        slot: item.slot,
-        name: item.name,
-        tier: item.tier,
-        rarity: item.rarity,
-        requiredSkill: item.required_skill,
-        requiredLevel: item.required_level,
-        icon: item.icon,
-        color: item.color,
-        description: item.description,
-        owned: ownedItemIds.has(item.id),
-        equipped: equippedItemIdBySlot.get(item.slot) === item.id,
-        eligible: currentLevel >= item.required_level,
-      };
-    });
+    const items = (gearItems || []).map((item) => ({
+      id: item.id,
+      slot: item.slot,
+      name: item.name,
+      tier: item.tier,
+      rarity: item.rarity,
+      requiredSkill: item.required_skill,
+      requiredLevel: item.required_level,
+      icon: item.icon,
+      color: item.color,
+      description: item.description,
+      owned: ownedItemIds.has(item.id),
+      equipped: equippedItemIdBySlot.get(item.slot) === item.id,
+      eligible: isEligibleForGear(item, levels),
+    }));
 
     return NextResponse.json({
       accountLevel,
