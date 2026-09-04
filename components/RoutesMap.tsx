@@ -13,7 +13,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { decodePolyline } from "@/lib/routes/decodePolyline";
 import { haversineDistanceMeters } from "@/lib/routes/haversine";
-import { dedupeRouteSegments } from "@/lib/routes/dedupeRouteSegments";
+import type { RouteSegment } from "@/lib/routes/dedupeRouteSegments";
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -135,10 +135,12 @@ export default function RoutesMap({
   activities,
   generatedRoute,
   showAllActivities = true,
+  dedupedSegments = [],
 }: {
   activities: RouteActivity[];
   generatedRoute?: [number, number][];
   showAllActivities?: boolean;
+  dedupedSegments?: RouteSegment[];
 }) {
   const clusters = useMemo(
     () => clusterActivitiesByProximity(activities),
@@ -169,11 +171,6 @@ export default function RoutesMap({
 
     return map;
   }, [activities]);
-
-  const dedupedSegments = useMemo(
-    () => dedupeRouteSegments(Array.from(activityPolylines.values())),
-    [activityPolylines]
-  );
 
   const selectedPoints = useMemo(() => {
     if (!selectedIds) {
