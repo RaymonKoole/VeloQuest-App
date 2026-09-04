@@ -68,10 +68,12 @@ export async function POST(request: NextRequest) {
     } catch (tokenError) {
       console.error("Strava account error:", tokenError);
 
-      return NextResponse.json(
-        { error: "Strava-account kon niet worden gevonden." },
-        { status: 500 }
-      );
+      const message =
+        tokenError instanceof Error && tokenError.message
+          ? tokenError.message
+          : "Strava-account kon niet worden gevonden.";
+
+      return NextResponse.json({ error: message }, { status: 401 });
     }
 
     if (!stravaAccessToken) {

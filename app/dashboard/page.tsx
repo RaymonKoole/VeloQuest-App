@@ -22,6 +22,7 @@ export default function DashboardPage() {
   const [userName, setUserName] = useState("");
   const [stravaAthlete, setStravaAthlete] = useState<any>(null);
   const [stravaConnected, setStravaConnected] = useState(false);
+  const [stravaError, setStravaError] = useState("");
   const [activities, setActivities] = useState<any[]>([]);
   const [activitiesLoading, setActivitiesLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
@@ -200,6 +201,15 @@ export default function DashboardPage() {
             );
           }
         });
+      } else if (profileResponse.status === 401) {
+        // Onderscheid tussen "nooit gekoppeld" (404) en "koppeling verlopen/
+        // token vernieuwen mislukt" (401) — anders lijkt het voor de
+        // gebruiker onterecht alsof Strava nooit gekoppeld is geweest.
+        const profileError = await profileResponse.json().catch(() => ({}));
+        setStravaError(
+          profileError.error ||
+            "Je Strava-koppeling lijkt niet meer geldig. Koppel opnieuw."
+        );
       }
 
       await dashboardDataLoaded;
@@ -258,7 +268,7 @@ export default function DashboardPage() {
             <p className="mt-1 text-sm text-neutral-400">
               {gearLoading
                 ? "Laden..."
-                : `${gearItems.filter((item) => item.equipped).length}/8 sloten uitgerust`}
+                : `${gearItems.filter((item) => item.equipped).length}/9 sloten uitgerust`}
               {xpData ? ` · Level ${xpData.level}` : ""}
             </p>
             <p className="mt-1 text-sm text-[#d59a57]">Bekijk je character →</p>
@@ -304,15 +314,16 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
-              <p className="text-neutral-400">
-                Koppel je Strava-account om ritten automatisch te synchroniseren.
+              <p className={stravaError ? "text-amber-400" : "text-neutral-400"}>
+                {stravaError ||
+                  "Koppel je Strava-account om ritten automatisch te synchroniseren."}
               </p>
 
               <a
                 href="/api/strava/auth"
                 className="rounded-xl bg-orange-500 px-4 py-3 font-semibold text-white hover:bg-orange-600 transition"
               >
-                Koppel met Strava
+                {stravaError ? "Opnieuw koppelen" : "Koppel met Strava"}
               </a>
             </div>
           )}

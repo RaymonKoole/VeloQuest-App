@@ -3,11 +3,22 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import Navbar from "@/components/Navbar";
+import { ALL_QUESTS_COMPLETED_GATE } from "@/lib/gear/types";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
 );
+
+function formatRequirement(item: { requiredSkill: string | null; requiredLevel: number }) {
+  if (item.requiredSkill === ALL_QUESTS_COMPLETED_GATE) {
+    return "alle quests voltooid";
+  }
+
+  return item.requiredSkill
+    ? `${item.requiredSkill}-level ${item.requiredLevel}`
+    : `account-level ${item.requiredLevel}`;
+}
 
 const SLOT_LABELS: Record<string, string> = {
   jersey: "👕 Shirts",
@@ -18,6 +29,7 @@ const SLOT_LABELS: Record<string, string> = {
   glasses: "🕶️ Brillen",
   socks: "🧦 Sokken",
   accessory: "🎖️ Accessoires",
+  cape: "🧥 Capes",
 };
 
 const SLOT_ORDER = [
@@ -28,6 +40,7 @@ const SLOT_ORDER = [
   "gloves",
   "glasses",
   "socks",
+  "cape",
   "accessory",
 ];
 
@@ -178,10 +191,7 @@ export default function ShopPage() {
                       )}
 
                       <p className="mt-3 text-xs text-neutral-600">
-                        Vereist:{" "}
-                        {item.requiredSkill
-                          ? `${item.requiredSkill}-level ${item.requiredLevel}`
-                          : `account-level ${item.requiredLevel}`}
+                        Vereist: {formatRequirement(item)}
                       </p>
 
                       <div className="mt-4">
@@ -200,7 +210,7 @@ export default function ShopPage() {
                           </button>
                         ) : (
                           <span className="inline-block rounded-lg bg-neutral-800 px-3 py-1.5 text-sm text-neutral-500">
-                            🔒 Vereist level {item.requiredLevel}
+                            🔒 Vereist: {formatRequirement(item)}
                           </span>
                         )}
                       </div>

@@ -1,5 +1,6 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { getLevelFromXp } from "@/lib/xp/level";
+import { ALL_QUESTS_COMPLETED_GATE } from "@/lib/gear/types";
 
 export async function getUserLevels(
   supabaseAdmin: SupabaseClient,
@@ -39,13 +40,34 @@ export async function getUserLevels(
     }
   }
 
-  return { accountLevel, skillLevelByName };
+  const { count: totalQuests } = await supabaseAdmin
+    .from("quests")
+    .select("id", { count: "exact", head: true });
+
+  const { count: completedQuests } = await supabaseAdmin
+    .from("user_quests")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("completed", true);
+
+  const allQuestsCompleted =
+    (totalQuests || 0) > 0 && (completedQuests || 0) >= (totalQuests || 0);
+
+  return { accountLevel, skillLevelByName, allQuestsCompleted };
 }
 
 export function isEligibleForGear(
   item: { required_skill: string | null; required_level: number },
-  levels: { accountLevel: number; skillLevelByName: Map<string, number> }
+  levels: {
+    accountLevel: number;
+    skillLevelByName: Map<string, number>;
+    allQuestsCompleted: boolean;
+  }
 ) {
+  if (item.required_skill === ALL_QUESTS_COMPLETED_GATE) {
+    return levels.allQuestsCompleted;
+  }
+
   const currentLevel = item.required_skill
     ? levels.skillLevelByName.get(item.required_skill) ?? 1
     : levels.accountLevel;
