@@ -1,6 +1,10 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { getLevelFromXp } from "@/lib/xp/level";
-import { ALL_QUESTS_COMPLETED_GATE } from "@/lib/gear/types";
+import {
+  ALL_BADGES_UNLOCKED_GATE,
+  ALL_QUESTS_COMPLETED_GATE,
+  MAX_TOTAL_LEVEL_GATE,
+} from "@/lib/gear/types";
 
 export async function getUserLevels(
   supabaseAdmin: SupabaseClient,
@@ -31,6 +35,7 @@ export async function getUserLevels(
     .eq("user_id", userId);
 
   const skillLevelByName = new Map<string, number>();
+  let totalLevel = 0;
 
   for (const row of skillRows || []) {
     const skillName = skillNameById.get(row.skill_id);
@@ -38,6 +43,8 @@ export async function getUserLevels(
     if (skillName) {
       skillLevelByName.set(skillName, row.level);
     }
+
+    totalLevel += row.level || 0;
   }
 
   const { count: totalQuests } = await supabaseAdmin
@@ -53,7 +60,25 @@ export async function getUserLevels(
   const allQuestsCompleted =
     (totalQuests || 0) > 0 && (completedQuests || 0) >= (totalQuests || 0);
 
-  return { accountLevel, skillLevelByName, allQuestsCompleted };
+  const { count: totalBadges } = await supabaseAdmin
+    .from("badges")
+    .select("id", { count: "exact", head: true });
+
+  const { count: unlockedBadges } = await supabaseAdmin
+    .from("user_badges")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId);
+
+  const allBadgesUnlocked =
+    (totalBadges || 0) > 0 && (unlockedBadges || 0) >= (totalBadges || 0);
+
+  return {
+    accountLevel,
+    skillLevelByName,
+    totalLevel,
+    allQuestsCompleted,
+    allBadgesUnlocked,
+  };
 }
 
 export function isEligibleForGear(
@@ -61,11 +86,21 @@ export function isEligibleForGear(
   levels: {
     accountLevel: number;
     skillLevelByName: Map<string, number>;
+    totalLevel: number;
     allQuestsCompleted: boolean;
+    allBadgesUnlocked: boolean;
   }
 ) {
   if (item.required_skill === ALL_QUESTS_COMPLETED_GATE) {
     return levels.allQuestsCompleted;
+  }
+
+  if (item.required_skill === ALL_BADGES_UNLOCKED_GATE) {
+    return levels.allBadgesUnlocked;
+  }
+
+  if (item.required_skill === MAX_TOTAL_LEVEL_GATE) {
+    return levels.totalLevel >= item.required_level;
   }
 
   const currentLevel = item.required_skill

@@ -9,10 +9,15 @@ export type GearSlot =
   | "accessory"
   | "cape";
 
-// Speciale sentinel-waarde voor gear_items.required_skill: geeft aan dat dit
-// item niet op skill-/account-level is vergrendeld, maar op het voltooien
-// van alle quests (net als de "quest cape" in Runescape).
+// Speciale sentinel-waardes voor gear_items.required_skill: geven aan dat een
+// item niet op skill-/account-level is vergrendeld, maar op een ander soort
+// prestige-voorwaarde (net als Runescape's quest cape / achievement diary
+// cape / max cape).
 export const ALL_QUESTS_COMPLETED_GATE = "__all_quests_completed__";
+export const ALL_BADGES_UNLOCKED_GATE = "__all_badges_unlocked__";
+// Bij deze gate geeft required_level de vereiste total level (som van alle
+// skill-levels) aan, i.p.v. een individueel skill-/account-level.
+export const MAX_TOTAL_LEVEL_GATE = "__max_total_level__";
 
 export type GearItem = {
   id: number;
