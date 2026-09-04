@@ -22,6 +22,7 @@ const SLOT_LABELS: Record<GearSlot, string> = {
   glasses: "Bril",
   socks: "Sokken",
   accessory: "Accessoire",
+  cape: "Cape",
 };
 
 export default function CharacterPage() {
@@ -115,6 +116,16 @@ export default function CharacterPage() {
     return map;
   }, [gearItems]);
 
+  const totalLevel = useMemo(
+    () => skills.reduce((sum, skill) => sum + getSkillProgress(skill.xp).level, 0),
+    [skills]
+  );
+
+  const ownedCount = useMemo(
+    () => gearItems.filter((item) => item.owned).length,
+    [gearItems]
+  );
+
   async function handleEquip(slot: GearSlot, itemId: number | null) {
     setEquipping(true);
     setMessage("");
@@ -184,15 +195,28 @@ export default function CharacterPage() {
               />
 
               <p className="text-sm text-neutral-500">
-                {equippedCount}/8 sloten uitgerust
+                {equippedCount}/9 sloten uitgerust
               </p>
 
-              {xp && (
-                <div className="text-center">
-                  <p className="text-xs text-neutral-500">Account-level</p>
-                  <p className="text-2xl font-bold text-purple-400">{xp.level}</p>
-                </div>
-              )}
+              <div className="flex gap-6">
+                {xp && (
+                  <div className="text-center">
+                    <p className="text-xs text-neutral-500">Account-level</p>
+                    <p className="text-2xl font-bold text-purple-400">{xp.level}</p>
+                  </div>
+                )}
+
+                {skills.length > 0 && (
+                  <div className="text-center">
+                    <p className="text-xs text-neutral-500">Total level</p>
+                    <p className="text-2xl font-bold text-amber-400">{totalLevel}</p>
+                  </div>
+                )}
+              </div>
+
+              <p className="text-xs text-neutral-600">
+                🧢 {ownedCount}/{gearItems.length} kledingstukken verzameld
+              </p>
 
               {openSlot && (
                 <div className="mt-2 w-full rounded-xl border border-neutral-800 bg-neutral-950 p-4">

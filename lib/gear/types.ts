@@ -6,7 +6,13 @@ export type GearSlot =
   | "gloves"
   | "glasses"
   | "socks"
-  | "accessory";
+  | "accessory"
+  | "cape";
+
+// Speciale sentinel-waarde voor gear_items.required_skill: geeft aan dat dit
+// item niet op skill-/account-level is vergrendeld, maar op het voltooien
+// van alle quests (net als de "quest cape" in Runescape).
+export const ALL_QUESTS_COMPLETED_GATE = "__all_quests_completed__";
 
 export type GearItem = {
   id: number;

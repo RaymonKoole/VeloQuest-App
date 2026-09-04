@@ -33,7 +33,15 @@ export async function getValidStravaAccessToken(userId: string) {
     refreshed = await refreshStravaToken(account.refresh_token);
   } catch (refreshError) {
     console.error("Strava-token vernieuwen mislukt:", refreshError);
-    return null;
+
+    // Belangrijk: hier NIET null teruggeven. De aanroepers behandelen null
+    // als "geen Strava-account gekoppeld", wat de gebruiker misleidt met
+    // "koppel Strava" terwijl er wél een koppeling is — alleen het vernieuwen
+    // van het token lukt niet (bv. omdat de koppeling bij Strava zelf is
+    // ingetrokken). Gooi daarom een duidelijke, herkenbare fout door.
+    throw new Error(
+      "Je Strava-koppeling lijkt niet meer geldig (token vernieuwen mislukt). Koppel Strava opnieuw via het dashboard."
+    );
   }
 
   const { error: updateError } = await supabaseAdmin

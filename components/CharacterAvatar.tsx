@@ -17,7 +17,7 @@ type CharacterAvatarProps = {
 // Layout geïnspireerd op het klassieke "worn equipment"-scherm: een
 // silhouet in het midden, met uitrustingsslots eromheen gepositioneerd.
 const LAYOUT: (GearSlot | null)[][] = [
-  [null, "helmet", null],
+  ["cape", "helmet", null],
   ["gloves", "jersey", "glasses"],
   [null, "shorts", "accessory"],
   ["socks", "shoes", null],
