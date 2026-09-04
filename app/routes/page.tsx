@@ -25,6 +25,7 @@ export default function RoutesPage() {
   const [loading, setLoading] = useState(true);
   const [country, setCountry] = useState("");
   const [city, setCity] = useState("");
+  const [showAllActivities, setShowAllActivities] = useState(true);
 
   const [startAddress, setStartAddress] = useState("");
   const [isLoop, setIsLoop] = useState(true);
@@ -212,6 +213,22 @@ export default function RoutesPage() {
           </div>
         </div>
 
+        <div className="mt-3 flex items-center gap-2">
+          <input
+            id="showAllActivities"
+            type="checkbox"
+            checked={showAllActivities}
+            onChange={(e) => setShowAllActivities(e.target.checked)}
+            className="h-4 w-4 rounded border-neutral-700 bg-neutral-950"
+          />
+          <label htmlFor="showAllActivities" className="text-sm text-neutral-300">
+            Toon alle activiteiten{" "}
+            <span className="text-neutral-500">
+              (uitvinken toont per route maar 1 lijn, ook als je 'm vaker hebt gereden)
+            </span>
+          </label>
+        </div>
+
         <p className="mt-2 text-xs text-neutral-500">
           Land en plaats worden automatisch bepaald op basis van de startlocatie van elke rit (via OpenStreetMap).
         </p>
@@ -396,6 +413,7 @@ export default function RoutesPage() {
             <RoutesMap
               activities={filteredActivities}
               generatedRoute={generatedRoute || undefined}
+              showAllActivities={showAllActivities}
             />
           )}
         </div>

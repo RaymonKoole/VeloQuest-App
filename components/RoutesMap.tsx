@@ -13,6 +13,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { decodePolyline } from "@/lib/routes/decodePolyline";
 import { haversineDistanceMeters } from "@/lib/routes/haversine";
+import { groupSimilarRoutes } from "@/lib/routes/groupSimilarRoutes";
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -133,9 +134,11 @@ function FitBounds({
 export default function RoutesMap({
   activities,
   generatedRoute,
+  showAllActivities = true,
 }: {
   activities: RouteActivity[];
   generatedRoute?: [number, number][];
+  showAllActivities?: boolean;
 }) {
   const clusters = useMemo(
     () => clusterActivitiesByProximity(activities),
@@ -166,6 +169,30 @@ export default function RoutesMap({
 
     return map;
   }, [activities]);
+
+  const routeGroups = useMemo(
+    () =>
+      groupSimilarRoutes(
+        activities.map((activity) => activity.id),
+        activityPolylines
+      ),
+    [activities, activityPolylines]
+  );
+
+  const routeGroupSizeByRepresentativeId = useMemo(() => {
+    const map = new Map<number, number>();
+
+    for (const [representativeId, memberIds] of routeGroups) {
+      map.set(representativeId, memberIds.length);
+    }
+
+    return map;
+  }, [routeGroups]);
+
+  const representativeActivityIds = useMemo(
+    () => new Set(routeGroups.keys()),
+    [routeGroups]
+  );
 
   const selectedPoints = useMemo(() => {
     if (!selectedIds) {
@@ -220,8 +247,13 @@ export default function RoutesMap({
           return null;
         }
 
+        if (!showAllActivities && !representativeActivityIds.has(activity.id)) {
+          return null;
+        }
+
         const isSelected = selectedIds?.has(activity.id) ?? false;
         const isDimmed = Boolean(selectedIds) && !isSelected;
+        const routeCount = routeGroupSizeByRepresentativeId.get(activity.id) ?? 1;
 
         return (
           <Fragment key={`line-${activity.id}`}>
@@ -253,7 +285,11 @@ export default function RoutesMap({
               eventHandlers={{
                 click: () => selectCluster([activity]),
               }}
-            />
+            >
+              {!showAllActivities && routeCount > 1 && (
+                <Popup>{routeCount}x gereden op deze route</Popup>
+              )}
+            </Polyline>
           </Fragment>
         );
       })}
