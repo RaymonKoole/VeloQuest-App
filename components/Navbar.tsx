@@ -6,6 +6,7 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "Home", icon: "🏠" },
   { href: "/quests", label: "Quests", icon: "⚔️" },
   { href: "/skills", label: "Skills", icon: "🧬" },
+  { href: "/shop", label: "Shop", icon: "🛍️" },
   { href: "/achievements", label: "Achievements", icon: "🏆" },
   { href: "/activities", label: "Activities", icon: "🚴" },
   { href: "/segments", label: "Segmenten", icon: "🚵" },
