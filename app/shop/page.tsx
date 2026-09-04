@@ -3,7 +3,11 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import Navbar from "@/components/Navbar";
-import { ALL_QUESTS_COMPLETED_GATE } from "@/lib/gear/types";
+import {
+  ALL_BADGES_UNLOCKED_GATE,
+  ALL_QUESTS_COMPLETED_GATE,
+  MAX_TOTAL_LEVEL_GATE,
+} from "@/lib/gear/types";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -13,6 +17,14 @@ const supabase = createClient(
 function formatRequirement(item: { requiredSkill: string | null; requiredLevel: number }) {
   if (item.requiredSkill === ALL_QUESTS_COMPLETED_GATE) {
     return "alle quests voltooid";
+  }
+
+  if (item.requiredSkill === ALL_BADGES_UNLOCKED_GATE) {
+    return "alle achievements ontgrendeld";
+  }
+
+  if (item.requiredSkill === MAX_TOTAL_LEVEL_GATE) {
+    return `total level ${item.requiredLevel}`;
   }
 
   return item.requiredSkill
