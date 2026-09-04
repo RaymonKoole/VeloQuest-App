@@ -6,6 +6,8 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { getSkillProgress } from "@/lib/progression/skillLevel";
 import Navbar from "@/components/Navbar";
+import CharacterAvatar from "@/components/CharacterAvatar";
+import type { GearSlot } from "@/lib/gear/types";
 
 function Skeleton({ className = "" }: { className?: string }) {
   return (
@@ -32,6 +34,8 @@ export default function DashboardPage() {
   const [questsLoading, setQuestsLoading] = useState(true);
   const [xpData, setXpData] = useState<any>(null);
   const [xpLoading, setXpLoading] = useState(true);
+  const [gearItems, setGearItems] = useState<any[]>([]);
+  const [gearLoading, setGearLoading] = useState(true);
   function loadDashboardData(accessToken: string) {
     const headers = { Authorization: `Bearer ${accessToken}` };
 
@@ -83,7 +87,15 @@ export default function DashboardPage() {
       setStatsLoading(false);
     });
 
-    return Promise.all([badges, activities, skills, quests, xp, stats]);
+    const gear = fetch("/api/gear", { headers }).then(async (response) => {
+      if (response.ok) {
+        setGearItems((await response.json()).items || []);
+      }
+
+      setGearLoading(false);
+    });
+
+    return Promise.all([badges, activities, skills, quests, xp, stats, gear]);
   }
 
   async function handleStravaSync() {
@@ -220,8 +232,41 @@ export default function DashboardPage() {
           </button>
         </div>
 
+        {/* Character */}
+        <Link
+          href="/character"
+          className="mt-6 flex flex-wrap items-center gap-5 rounded-2xl border border-neutral-800 bg-neutral-900 p-6 transition hover:border-neutral-700"
+        >
+          {gearLoading ? (
+            <Skeleton className="h-20 w-32" />
+          ) : (
+            <CharacterAvatar
+              equipment={Object.fromEntries(
+                gearItems
+                  .filter((item) => item.equipped)
+                  .map((item) => [
+                    item.slot as GearSlot,
+                    { icon: item.icon, color: item.color, name: item.name },
+                  ])
+              )}
+              size="sm"
+            />
+          )}
+
+          <div>
+            <p className="text-lg font-semibold">🚴 Jouw character</p>
+            <p className="mt-1 text-sm text-neutral-400">
+              {gearLoading
+                ? "Laden..."
+                : `${gearItems.filter((item) => item.equipped).length}/8 sloten uitgerust`}
+              {xpData ? ` · Level ${xpData.level}` : ""}
+            </p>
+            <p className="mt-1 text-sm text-[#d59a57]">Bekijk je character →</p>
+          </div>
+        </Link>
+
         {/* Strava */}
-        <div className="mt-8 rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
+        <div className="mt-6 rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
           <h2 className="text-xl font-semibold">
             🚴 Strava
           </h2>
