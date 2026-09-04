@@ -15,7 +15,7 @@ export async function calculateSkills(userId: string) {
     await supabaseAdmin
       .from("strava_activities")
       .select(
-        "id, distance, total_elevation_gain, moving_time, activity_type, average_speed, city, country, start_date"
+        "id, distance, total_elevation_gain, moving_time, activity_type, average_speed, city, country, start_date, calories, kudos_count"
       )
       .eq("user_id", userId)
       .in("activity_type", ["Ride", "GravelRide"]);
@@ -64,6 +64,38 @@ export async function calculateSkills(userId: string) {
     rides.map((activity) => activity.start_date)
   );
 
+  const totalCalories = rides.reduce(
+    (total, activity) => total + (activity.calories || 0),
+    0
+  );
+
+  const totalKudos = rides.reduce(
+    (total, activity) => total + (activity.kudos_count || 0),
+    0
+  );
+
+  // Meteorologische seizoenen (noordelijk halfrond): winter = dec/jan/feb,
+  // lente = mrt/apr/mei, zomer = jun/jul/aug, herfst = sep/okt/nov.
+  const seasonRideCounts = { winter: 0, spring: 0, summer: 0, autumn: 0 };
+
+  for (const activity of rides) {
+    if (!activity.start_date) {
+      continue;
+    }
+
+    const month = new Date(activity.start_date).getUTCMonth();
+
+    if (month === 11 || month === 0 || month === 1) {
+      seasonRideCounts.winter += 1;
+    } else if (month >= 2 && month <= 4) {
+      seasonRideCounts.spring += 1;
+    } else if (month >= 5 && month <= 7) {
+      seasonRideCounts.summer += 1;
+    } else {
+      seasonRideCounts.autumn += 1;
+    }
+  }
+
   const rideIds = rides.map((activity) => activity.id);
 
   const { count: segmentAttempts } =
@@ -103,6 +135,12 @@ export async function calculateSkills(userId: string) {
     Navigator: uniquePlaces * 20,
     Social: (cafeStops || 0) * 3,
     Discipline: longestStreak * 100,
+    Power: totalCalories,
+    Popularity: totalKudos,
+    Winter: seasonRideCounts.winter,
+    Spring: seasonRideCounts.spring,
+    Summer: seasonRideCounts.summer,
+    Autumn: seasonRideCounts.autumn,
   };
 
   const { data: skills, error: skillsError } =
