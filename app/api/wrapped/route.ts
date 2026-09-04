@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getLevelFromXp } from "@/lib/xp/level";
+import { calculateLongestStreak } from "@/lib/stats/longestStreak";
 
 const DUTCH_MONTHS = [
   "januari", "februari", "maart", "april", "mei", "juni",
@@ -177,31 +178,9 @@ export async function GET(request: NextRequest) {
         ? DUTCH_WEEKDAYS[bestWeekdayIndex]
         : null;
 
-    const uniqueDates = Array.from(
-      new Set(
-        rides
-          .filter((r) => r.start_date)
-          .map((r) => r.start_date!.slice(0, 10))
-      )
-    ).sort();
-
-    let longestStreak = uniqueDates.length > 0 ? 1 : 0;
-    let currentStreak = 1;
-
-    for (let i = 1; i < uniqueDates.length; i++) {
-      const prev = new Date(uniqueDates[i - 1]);
-      const cur = new Date(uniqueDates[i]);
-      const diffDays = Math.round(
-        (cur.getTime() - prev.getTime()) / (24 * 60 * 60 * 1000)
-      );
-
-      if (diffDays === 1) {
-        currentStreak++;
-        longestStreak = Math.max(longestStreak, currentStreak);
-      } else {
-        currentStreak = 1;
-      }
-    }
+    const longestStreak = calculateLongestStreak(
+      rides.map((r) => r.start_date)
+    );
 
     const { data: xpRows } = await supabaseAdmin
       .from("activity_xp")
