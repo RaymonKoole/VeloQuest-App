@@ -250,6 +250,55 @@ export default function SegmentsPage() {
                 had.
               </p>
             </section>
+
+            <section>
+              <h2 className="text-2xl font-bold">⭐ Populairste segmenten</h2>
+              <p className="mt-1 text-sm text-neutral-500">
+                Van de segmenten die jij hebt gereden: welke worden door
+                Strava-gebruikers het vaakst als favoriet gemarkeerd (⭐)
+              </p>
+
+              {!data.mostPopularSegments || data.mostPopularSegments.length === 0 ? (
+                <p className="mt-4 text-sm text-neutral-500">
+                  Nog geen populariteitsgegevens gevonden.
+                </p>
+              ) : (
+                <div className="mt-4 overflow-x-auto rounded-2xl border border-neutral-800">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-neutral-900 text-neutral-400">
+                      <tr>
+                        <th className="px-4 py-3 font-medium">Segment</th>
+                        <th className="px-4 py-3 font-medium">⭐ Favorieten</th>
+                        <th className="px-4 py-3 font-medium">Wielrenners</th>
+                        <th className="px-4 py-3 font-medium">Afstand</th>
+                        <th className="px-4 py-3 font-medium">Jouw beste tijd</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-neutral-800">
+                      {data.mostPopularSegments.map((segment: any) => (
+                        <tr key={segment.segmentId} className="bg-neutral-950">
+                          <td className="px-4 py-3">{segment.name}</td>
+                          <td className="px-4 py-3 font-semibold text-amber-400">
+                            ⭐ {segment.starCount.toLocaleString("nl-NL")}
+                          </td>
+                          <td className="px-4 py-3 text-neutral-400">
+                            {segment.athleteCount != null
+                              ? segment.athleteCount.toLocaleString("nl-NL")
+                              : "-"}
+                          </td>
+                          <td className="px-4 py-3 text-neutral-400">
+                            {segment.distanceKm != null ? `${segment.distanceKm} km` : "-"}
+                          </td>
+                          <td className="px-4 py-3">
+                            {formatDuration(segment.bestElapsedSeconds)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
           </div>
         )}
       </div>
