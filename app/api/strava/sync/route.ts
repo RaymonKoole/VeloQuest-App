@@ -404,14 +404,20 @@ const distinctSegmentIds = Array.from(
 if (distinctSegmentIds.length > 0 && Date.now() - syncStartedAt < SYNC_TIME_BUDGET_MS) {
   const { data: knownSegmentRows } = await supabaseAdmin
     .from("segments")
-    .select("segment_id")
+    .select("segment_id, raw")
     .in("segment_id", distinctSegmentIds);
 
-  const knownSegmentIds = new Set(
-    (knownSegmentRows || []).map((row) => row.segment_id)
+  // Een segment telt hier alleen als "compleet" als het ook de ruwe
+  // Strava-respons heeft (raw). Segmenten die zijn gecachet vóórdat we raw
+  // gingen opslaan, worden zo alsnog één keer opnieuw opgehaald i.p.v. voor
+  // altijd te ontbreken.
+  const completeSegmentIds = new Set(
+    (knownSegmentRows || [])
+      .filter((row) => row.raw !== null)
+      .map((row) => row.segment_id)
   );
   const missingSegmentIds = distinctSegmentIds.filter(
-    (id) => !knownSegmentIds.has(id)
+    (id) => !completeSegmentIds.has(id)
   );
 
   for (const segmentId of missingSegmentIds.slice(0, MAX_SEGMENT_DETAILS_PER_SYNC)) {

@@ -169,11 +169,21 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => b.attempts - a.attempts)
       .slice(0, 20);
 
+    // "Populairste segmenten": gesorteerd op Strava's eigen ster-teller (hoe
+    // vaak andere Strava-gebruikers dit segment als favoriet markeerden) —
+    // alleen segmenten die je zelf ook hebt gereden, en waarvoor we al
+    // segmentdetail hebben opgehaald.
+    const mostPopularSegments = allSegments
+      .filter((segment) => segment.starCount != null)
+      .sort((a, b) => (b.starCount ?? 0) - (a.starCount ?? 0))
+      .slice(0, 20);
+
     return NextResponse.json({
       totalSegments: allSegments.length,
       totalPrSegments: prSegmentsAll.length,
       prSegments: prSegmentsAll.slice(0, MAX_PR_SEGMENTS_SHOWN),
       mostRiddenSegments,
+      mostPopularSegments,
     });
   } catch (error) {
     console.error("Segments API error:", error);
