@@ -13,7 +13,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { decodePolyline } from "@/lib/routes/decodePolyline";
 import { haversineDistanceMeters } from "@/lib/routes/haversine";
-import { groupSimilarRoutes } from "@/lib/routes/groupSimilarRoutes";
+import type { RouteSegment } from "@/lib/routes/dedupeRouteSegments";
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -135,10 +135,12 @@ export default function RoutesMap({
   activities,
   generatedRoute,
   showAllActivities = true,
+  dedupedSegments = [],
 }: {
   activities: RouteActivity[];
   generatedRoute?: [number, number][];
   showAllActivities?: boolean;
+  dedupedSegments?: RouteSegment[];
 }) {
   const clusters = useMemo(
     () => clusterActivitiesByProximity(activities),
@@ -169,30 +171,6 @@ export default function RoutesMap({
 
     return map;
   }, [activities]);
-
-  const routeGroups = useMemo(
-    () =>
-      groupSimilarRoutes(
-        activities.map((activity) => activity.id),
-        activityPolylines
-      ),
-    [activities, activityPolylines]
-  );
-
-  const routeGroupSizeByRepresentativeId = useMemo(() => {
-    const map = new Map<number, number>();
-
-    for (const [representativeId, memberIds] of routeGroups) {
-      map.set(representativeId, memberIds.length);
-    }
-
-    return map;
-  }, [routeGroups]);
-
-  const representativeActivityIds = useMemo(
-    () => new Set(routeGroups.keys()),
-    [routeGroups]
-  );
 
   const selectedPoints = useMemo(() => {
     if (!selectedIds) {
@@ -240,59 +218,79 @@ export default function RoutesMap({
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
 
-      {activities.map((activity) => {
-        const polylinePoints = activityPolylines.get(activity.id);
+      {showAllActivities
+        ? activities.map((activity) => {
+            const polylinePoints = activityPolylines.get(activity.id);
 
-        if (!polylinePoints) {
-          return null;
-        }
+            if (!polylinePoints) {
+              return null;
+            }
 
-        if (!showAllActivities && !representativeActivityIds.has(activity.id)) {
-          return null;
-        }
+            const isSelected = selectedIds?.has(activity.id) ?? false;
+            const isDimmed = Boolean(selectedIds) && !isSelected;
 
-        const isSelected = selectedIds?.has(activity.id) ?? false;
-        const isDimmed = Boolean(selectedIds) && !isSelected;
-        const routeCount = routeGroupSizeByRepresentativeId.get(activity.id) ?? 1;
+            return (
+              <Fragment key={`line-${activity.id}`}>
+                {/* Donkere "casing" eronder zodat de lijn opvalt tegen elke ondergrond (ook rode wegen);
+                    ook het klikbare gebied (breder dan de zichtbare lijn, makkelijker te raken) */}
+                <Polyline
+                  positions={polylinePoints}
+                  pathOptions={{
+                    color: isSelected ? "#7c4a12" : BRAND_COLOR_DARK,
+                    weight: isSelected ? 9 : 7,
+                    opacity: isDimmed ? 0.12 : 0.85,
+                    lineCap: "round",
+                    lineJoin: "round",
+                  }}
+                  eventHandlers={{
+                    click: () => selectCluster([activity]),
+                  }}
+                />
 
-        return (
-          <Fragment key={`line-${activity.id}`}>
-            {/* Donkere "casing" eronder zodat de lijn opvalt tegen elke ondergrond (ook rode wegen);
-                ook het klikbare gebied (breder dan de zichtbare lijn, makkelijker te raken) */}
-            <Polyline
-              positions={polylinePoints}
-              pathOptions={{
-                color: isSelected ? "#7c4a12" : BRAND_COLOR_DARK,
-                weight: isSelected ? 9 : 7,
-                opacity: isDimmed ? 0.12 : 0.85,
-                lineCap: "round",
-                lineJoin: "round",
-              }}
-              eventHandlers={{
-                click: () => selectCluster([activity]),
-              }}
-            />
+                <Polyline
+                  positions={polylinePoints}
+                  pathOptions={{
+                    color: isSelected ? "#ffd76a" : BRAND_COLOR,
+                    weight: isSelected ? 6 : 4,
+                    opacity: isDimmed ? 0.12 : 1,
+                    lineCap: "round",
+                    lineJoin: "round",
+                  }}
+                  eventHandlers={{
+                    click: () => selectCluster([activity]),
+                  }}
+                />
+              </Fragment>
+            );
+          })
+        : dedupedSegments.length > 0 && (
+            // Alle unieke gereden wegstukken in één multi-polyline: elk stuk
+            // weg wordt zo maar één keer getekend, ongeacht hoeveel
+            // activiteiten erover gingen.
+            <Fragment key="deduped-segments">
+              <Polyline
+                positions={dedupedSegments}
+                pathOptions={{
+                  color: BRAND_COLOR_DARK,
+                  weight: 7,
+                  opacity: 0.85,
+                  lineCap: "round",
+                  lineJoin: "round",
+                }}
+              />
 
-            <Polyline
-              positions={polylinePoints}
-              pathOptions={{
-                color: isSelected ? "#ffd76a" : BRAND_COLOR,
-                weight: isSelected ? 6 : 4,
-                opacity: isDimmed ? 0.12 : 1,
-                lineCap: "round",
-                lineJoin: "round",
-              }}
-              eventHandlers={{
-                click: () => selectCluster([activity]),
-              }}
-            >
-              {!showAllActivities && routeCount > 1 && (
-                <Popup>{routeCount}x gereden op deze route</Popup>
-              )}
-            </Polyline>
-          </Fragment>
-        );
-      })}
+              <Polyline
+                positions={dedupedSegments}
+                pathOptions={{
+                  color: BRAND_COLOR,
+                  weight: 4,
+                  opacity: 1,
+                  lineCap: "round",
+                  lineJoin: "round",
+                }}
+              />
+            </Fragment>
+          )}
 
       {clusters.map((clusterActivities) => {
         const first = clusterActivities[0];

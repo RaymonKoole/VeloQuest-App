@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { createClient } from "@supabase/supabase-js";
 import Navbar from "@/components/Navbar";
 import type { RouteActivity } from "@/components/RoutesMap";
+import type { RouteSegment } from "@/lib/routes/dedupeRouteSegments";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -26,6 +27,9 @@ export default function RoutesPage() {
   const [country, setCountry] = useState("");
   const [city, setCity] = useState("");
   const [showAllActivities, setShowAllActivities] = useState(true);
+  const [dedupedSegments, setDedupedSegments] = useState<RouteSegment[]>([]);
+  const [segmentsLoading, setSegmentsLoading] = useState(false);
+  const [segmentsError, setSegmentsError] = useState("");
 
   const [startAddress, setStartAddress] = useState("");
   const [isLoop, setIsLoop] = useState(true);
@@ -122,6 +126,55 @@ export default function RoutesPage() {
 
     loadRoutes();
   }, []);
+
+  useEffect(() => {
+    if (showAllActivities) {
+      return;
+    }
+
+    async function loadSegments() {
+      setSegmentsLoading(true);
+      setSegmentsError("");
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        window.location.href = "/login";
+        return;
+      }
+
+      const params = new URLSearchParams();
+
+      if (country) {
+        params.set("country", country);
+      }
+
+      if (city) {
+        params.set("city", city);
+      }
+
+      const response = await fetch(`/api/routes/segments?${params.toString()}`, {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setSegmentsError(data.error || "Unieke routes konden niet worden berekend.");
+        setSegmentsLoading(false);
+        return;
+      }
+
+      setDedupedSegments(data.segments || []);
+      setSegmentsLoading(false);
+    }
+
+    loadSegments();
+  }, [showAllActivities, country, city]);
 
   const countries = useMemo(() => {
     const counts = new Map<string, number>();
@@ -409,14 +462,23 @@ export default function RoutesPage() {
                 ? "Nog geen ritten met locatiegegevens gevonden. Synchroniseer je Strava-activiteiten opnieuw vanaf het dashboard."
                 : "Geen ritten gevonden voor dit filter."}
             </div>
+          ) : !showAllActivities && segmentsLoading ? (
+            <div className="flex h-full items-center justify-center text-neutral-400">
+              Unieke routes berekenen...
+            </div>
           ) : (
             <RoutesMap
               activities={filteredActivities}
               generatedRoute={generatedRoute || undefined}
               showAllActivities={showAllActivities}
+              dedupedSegments={dedupedSegments}
             />
           )}
         </div>
+
+        {segmentsError && (
+          <p className="mt-2 text-sm text-red-400">{segmentsError}</p>
+        )}
 
         <p className="mt-3 text-sm text-neutral-500">
           {filteredActivities.length} van {activities.length} ritten met locatiegegevens.
