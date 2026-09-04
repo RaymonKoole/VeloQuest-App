@@ -1,6 +1,6 @@
 import { haversineDistanceMeters } from "@/lib/routes/haversine";
 
-export type RouteSegment = [[number, number], [number, number]];
+export type RouteSegment = [number, number][];
 
 // Rondt GPS-punten af op een grid-cel zodat kleine GPS-afwijkingen tussen
 // ritten over dezelfde weg niet als een ander stukje weg worden gezien.
@@ -62,25 +62,22 @@ function resamplePolyline(
   return resampled;
 }
 
-function cellKeyAndCenter(
-  point: [number, number],
-  cellSizeDegrees: number
-): { key: string; center: [number, number] } {
+function cellKey(point: [number, number], cellSizeDegrees: number): string {
   const [lat, lng] = point;
   const latIndex = Math.round(lat / cellSizeDegrees);
   const lngIndex = Math.round(lng / cellSizeDegrees);
 
-  return {
-    key: `${latIndex}:${lngIndex}`,
-    center: [latIndex * cellSizeDegrees, lngIndex * cellSizeDegrees],
-  };
+  return `${latIndex}:${lngIndex}`;
 }
 
 /**
- * Herbemonstert en snapt alle meegegeven polylines op een grid, en geeft de
- * unieke set van gereden grid-verbindingen terug: als meerdere activiteiten
- * over hetzelfde stuk weg gaan (ook met net andere GPS-samples), komen ze op
- * dezelfde grid-cellen uit en wordt dat stuk maar één keer teruggegeven.
+ * Herbemonstert alle meegegeven polylines en gebruikt een grid alleen om te
+ * BEPALEN of een stukje weg al eerder is teruggegeven (twee ritten over
+ * dezelfde straat komen op dezelfde grid-cellen uit, ook met net andere
+ * GPS-samples). Aaneengesloten, nog niet eerder geziene stukken weg worden
+ * samengevoegd tot één doorlopende polyline (met de echte, herbemonsterde
+ * coördinaten, niet grid-middelpunten) — zo blijft de lijn net zo vloeiend
+ * als op de rest van de kaart, i.p.v. uit losse hokjes opgebouwd.
  */
 export function dedupeRouteSegments(
   polylines: [number, number][][],
@@ -90,31 +87,53 @@ export function dedupeRouteSegments(
   const resampleStepMeters = options?.resampleStepMeters ?? RESAMPLE_STEP_METERS;
 
   const seenEdgeKeys = new Set<string>();
-  const segments: RouteSegment[] = [];
+  const chains: RouteSegment[] = [];
 
   for (const points of polylines) {
     const resampledPoints = resamplePolyline(points, resampleStepMeters);
 
-    let previousCell: { key: string; center: [number, number] } | null = null;
+    let currentChain: [number, number][] = [];
+    let previousPoint: [number, number] | null = null;
+    let previousKey: string | null = null;
 
     for (const point of resampledPoints) {
-      const cell = cellKeyAndCenter(point, cellSizeDegrees);
+      const key = cellKey(point, cellSizeDegrees);
 
-      if (previousCell && previousCell.key !== cell.key) {
-        const edgeKey =
-          previousCell.key < cell.key
-            ? `${previousCell.key}|${cell.key}`
-            : `${cell.key}|${previousCell.key}`;
-
-        if (!seenEdgeKeys.has(edgeKey)) {
-          seenEdgeKeys.add(edgeKey);
-          segments.push([previousCell.center, cell.center]);
-        }
+      if (previousPoint === null || previousKey === null) {
+        previousPoint = point;
+        previousKey = key;
+        continue;
       }
 
-      previousCell = cell;
+      if (key === previousKey) {
+        continue;
+      }
+
+      const edgeKey = previousKey < key ? `${previousKey}|${key}` : `${key}|${previousKey}`;
+
+      if (seenEdgeKeys.has(edgeKey)) {
+        if (currentChain.length >= 2) {
+          chains.push(currentChain);
+        }
+        currentChain = [];
+      } else {
+        seenEdgeKeys.add(edgeKey);
+
+        if (currentChain.length === 0) {
+          currentChain.push(previousPoint);
+        }
+
+        currentChain.push(point);
+      }
+
+      previousPoint = point;
+      previousKey = key;
+    }
+
+    if (currentChain.length >= 2) {
+      chains.push(currentChain);
     }
   }
 
-  return segments;
+  return chains;
 }
