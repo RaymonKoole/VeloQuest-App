@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     const { data: gearItems, error: gearError } = await supabaseAdmin
       .from("gear_items")
       .select(
-        "id, slot, name, tier, rarity, required_skill, required_level, icon, color, description"
+        "id, slot, name, tier, rarity, required_skill, required_level, icon, color, pattern, description"
       )
       .order("slot")
       .order("tier");
@@ -83,6 +83,7 @@ export async function GET(request: NextRequest) {
       requiredLevel: item.required_level,
       icon: item.icon,
       color: item.color,
+      pattern: item.pattern,
       description: item.description,
       owned: ownedItemIds.has(item.id),
       equipped: equippedItemIdBySlot.get(item.slot) === item.id,

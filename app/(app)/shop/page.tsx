@@ -32,6 +32,7 @@ function formatRequirement(item: { requiredSkill: string | null; requiredLevel: 
 }
 
 const SLOT_LABELS: Record<string, string> = {
+  bike: "🚲 Racefietsen",
   jersey: "👕 Shirts",
   shorts: "🩳 Broeken",
   helmet: "⛑️ Helmen",
@@ -44,6 +45,7 @@ const SLOT_LABELS: Record<string, string> = {
 };
 
 const SLOT_ORDER = [
+  "bike",
   "jersey",
   "shorts",
   "helmet",

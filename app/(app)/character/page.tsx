@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import CharacterAvatar from "@/components/CharacterAvatar";
-import type { GearSlot } from "@/lib/gear/types";
+import { ALL_GEAR_SLOTS, type GearSlot } from "@/lib/gear/types";
 import { getSkillProgress } from "@/lib/progression/skillLevel";
 import Link from "next/link";
 
@@ -13,6 +13,7 @@ const supabase = createClient(
 );
 
 const SLOT_LABELS: Record<GearSlot, string> = {
+  bike: "Racefiets",
   jersey: "Shirt",
   shorts: "Broek",
   helmet: "Helm",
@@ -23,6 +24,8 @@ const SLOT_LABELS: Record<GearSlot, string> = {
   accessory: "Accessoire",
   cape: "Cape",
 };
+
+const TOTAL_SLOTS = ALL_GEAR_SLOTS.length;
 
 export default function CharacterPage() {
   const [gearItems, setGearItems] = useState<any[]>([]);
@@ -191,7 +194,7 @@ export default function CharacterPage() {
             />
 
             <p className="text-sm text-neutral-500">
-              {equippedCount}/9 sloten uitgerust
+              {equippedCount}/{TOTAL_SLOTS} sloten uitgerust
             </p>
 
             <div className="flex gap-6">

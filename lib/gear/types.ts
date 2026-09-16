@@ -7,7 +7,26 @@ export type GearSlot =
   | "glasses"
   | "socks"
   | "accessory"
-  | "cape";
+  | "cape"
+  | "bike";
+
+export const ALL_GEAR_SLOTS: GearSlot[] = [
+  "bike",
+  "jersey",
+  "shorts",
+  "helmet",
+  "shoes",
+  "gloves",
+  "glasses",
+  "socks",
+  "accessory",
+  "cape",
+];
+
+// Speciale waarde voor gear_items.pattern: i.p.v. een vlakke kleur een
+// horizontale regenboogbanding (zoals de UCI-wereldkampioenstrui), gebruikt
+// voor de romp/mouwen (jersey) of het fietsframe (bike).
+export const RAINBOW_PATTERN = "rainbow";
 
 // Speciale sentinel-waardes voor gear_items.required_skill: geven aan dat een
 // item niet op skill-/account-level is vergrendeld, maar op een ander soort
@@ -29,5 +48,6 @@ export type GearItem = {
   requiredLevel: number;
   icon: string;
   color: string;
+  pattern: string | null;
   description: string | null;
 };
