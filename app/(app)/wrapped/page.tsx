@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
-import Navbar from "@/components/Navbar";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -493,122 +492,118 @@ export default function WrappedPage() {
   const slide = slides[index];
 
   return (
-    <main className="min-h-screen bg-neutral-950 text-white">
-      <div className="mx-auto max-w-6xl px-6 py-10">
-        <Navbar active="/wrapped" />
+    <>
+      <h1 className="text-3xl font-bold">✨ Wrapped</h1>
 
-        <h1 className="text-3xl font-bold">✨ Wrapped</h1>
+      <p className="mt-1 text-neutral-400">
+        Jouw fietsjaar in een notendop, gebaseerd op je Strava-ritten.
+      </p>
 
-        <p className="mt-1 text-neutral-400">
-          Jouw fietsjaar in een notendop, gebaseerd op je Strava-ritten.
-        </p>
+      {!loading && !error && data?.hasData && (
+        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3 text-sm">
+          <span className="text-neutral-400">
+            {remainingToEnrich === null && remainingStreams === null
+              ? "Details zoals cafés, segmenten en kudos worden op de achtergrond aangevuld..."
+              : (remainingToEnrich ?? 0) + (remainingStreams ?? 0) > 0
+                ? "Sommige ritten missen nog details (cafés, segmenten, kudos)."
+                : "Alle ritten zijn verrijkt met extra details."}
+          </span>
 
-        {!loading && !error && data?.hasData && (
-          <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3 text-sm">
-            <span className="text-neutral-400">
-              {remainingToEnrich === null && remainingStreams === null
-                ? "Details zoals cafés, segmenten en kudos worden op de achtergrond aangevuld..."
-                : (remainingToEnrich ?? 0) + (remainingStreams ?? 0) > 0
-                  ? "Sommige ritten missen nog details (cafés, segmenten, kudos)."
-                  : "Alle ritten zijn verrijkt met extra details."}
+          <button
+            type="button"
+            onClick={handleEnrichMore}
+            disabled={enriching}
+            className="rounded-lg bg-[#d59a57] px-3 py-1.5 text-sm font-medium text-neutral-950 hover:opacity-90 disabled:opacity-50"
+          >
+            {enriching ? "Bezig..." : "🔄 Verrijk nu"}
+          </button>
+
+          {enrichMessage && (
+            <span className="text-neutral-500">{enrichMessage}</span>
+          )}
+        </div>
+      )}
+
+      {loading ? (
+        <p className="mt-8 text-sm text-neutral-400">Wrapped laden...</p>
+      ) : error ? (
+        <p className="mt-8 text-sm text-red-400">{error}</p>
+      ) : slides.length === 0 ? (
+        <div className="mt-8 rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
+          <p className="text-neutral-400">
+            Nog geen ritten gevonden. Koppel Strava en synchroniseer je activiteiten om je Wrapped te zien.
+          </p>
+        </div>
+      ) : (
+        <div className="mt-8">
+          {/* Voortgangsbalkjes, zoals Instagram/Spotify stories */}
+          <div className="flex gap-1.5">
+            {slides.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => goTo(i)}
+                aria-label={`Ga naar kaart ${i + 1}`}
+                className={`h-1.5 flex-1 rounded-full transition ${
+                  i === index ? "bg-white" : "bg-white/20"
+                }`}
+              />
+            ))}
+          </div>
+
+          <div
+            className={`relative mt-4 flex h-[480px] select-none flex-col items-center justify-center overflow-hidden rounded-3xl bg-gradient-to-br p-10 text-center shadow-2xl ${slide.gradient}`}
+          >
+            <button
+              type="button"
+              aria-label="Vorige"
+              onClick={() => goTo(index - 1)}
+              className="absolute inset-y-0 left-0 w-1/3 cursor-w-resize"
+            />
+            <button
+              type="button"
+              aria-label="Volgende"
+              onClick={() => goTo(index + 1)}
+              className="absolute inset-y-0 right-0 w-1/3 cursor-e-resize"
+            />
+
+            <span className="text-6xl">{slide.emoji}</span>
+
+            <p className="mt-6 text-sm font-semibold uppercase tracking-widest text-white/70">
+              {slide.title}
+            </p>
+
+            <p className="mt-3 text-5xl font-extrabold leading-tight break-words">
+              {slide.big}
+            </p>
+
+            <p className="mt-4 max-w-md text-white/80">{slide.sub}</p>
+          </div>
+
+          <div className="mt-4 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => goTo(index - 1)}
+              disabled={index === 0}
+              className="rounded-xl bg-neutral-900 px-4 py-2 text-sm text-neutral-300 hover:bg-neutral-800 disabled:opacity-30"
+            >
+              ← Vorige
+            </button>
+
+            <span className="text-sm text-neutral-500">
+              {index + 1} / {slides.length}
             </span>
 
             <button
               type="button"
-              onClick={handleEnrichMore}
-              disabled={enriching}
-              className="rounded-lg bg-[#d59a57] px-3 py-1.5 text-sm font-medium text-neutral-950 hover:opacity-90 disabled:opacity-50"
+              onClick={() => goTo(index + 1)}
+              disabled={index === slides.length - 1}
+              className="rounded-xl bg-neutral-900 px-4 py-2 text-sm text-neutral-300 hover:bg-neutral-800 disabled:opacity-30"
             >
-              {enriching ? "Bezig..." : "🔄 Verrijk nu"}
+              Volgende →
             </button>
-
-            {enrichMessage && (
-              <span className="text-neutral-500">{enrichMessage}</span>
-            )}
           </div>
-        )}
-
-        {loading ? (
-          <p className="mt-8 text-sm text-neutral-400">Wrapped laden...</p>
-        ) : error ? (
-          <p className="mt-8 text-sm text-red-400">{error}</p>
-        ) : slides.length === 0 ? (
-          <div className="mt-8 rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
-            <p className="text-neutral-400">
-              Nog geen ritten gevonden. Koppel Strava en synchroniseer je activiteiten om je Wrapped te zien.
-            </p>
-          </div>
-        ) : (
-          <div className="mt-8">
-            {/* Voortgangsbalkjes, zoals Instagram/Spotify stories */}
-            <div className="flex gap-1.5">
-              {slides.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => goTo(i)}
-                  aria-label={`Ga naar kaart ${i + 1}`}
-                  className={`h-1.5 flex-1 rounded-full transition ${
-                    i === index ? "bg-white" : "bg-white/20"
-                  }`}
-                />
-              ))}
-            </div>
-
-            <div
-              className={`relative mt-4 flex h-[480px] select-none flex-col items-center justify-center overflow-hidden rounded-3xl bg-gradient-to-br p-10 text-center shadow-2xl ${slide.gradient}`}
-            >
-              <button
-                type="button"
-                aria-label="Vorige"
-                onClick={() => goTo(index - 1)}
-                className="absolute inset-y-0 left-0 w-1/3 cursor-w-resize"
-              />
-              <button
-                type="button"
-                aria-label="Volgende"
-                onClick={() => goTo(index + 1)}
-                className="absolute inset-y-0 right-0 w-1/3 cursor-e-resize"
-              />
-
-              <span className="text-6xl">{slide.emoji}</span>
-
-              <p className="mt-6 text-sm font-semibold uppercase tracking-widest text-white/70">
-                {slide.title}
-              </p>
-
-              <p className="mt-3 text-5xl font-extrabold leading-tight break-words">
-                {slide.big}
-              </p>
-
-              <p className="mt-4 max-w-md text-white/80">{slide.sub}</p>
-            </div>
-
-            <div className="mt-4 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => goTo(index - 1)}
-                disabled={index === 0}
-                className="rounded-xl bg-neutral-900 px-4 py-2 text-sm text-neutral-300 hover:bg-neutral-800 disabled:opacity-30"
-              >
-                ← Vorige
-              </button>
-
-              <span className="text-sm text-neutral-500">
-                {index + 1} / {slides.length}
-              </span>
-
-              <button
-                type="button"
-                onClick={() => goTo(index + 1)}
-                disabled={index === slides.length - 1}
-                className="rounded-xl bg-neutral-900 px-4 py-2 text-sm text-neutral-300 hover:bg-neutral-800 disabled:opacity-30"
-              >
-                Volgende →
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    </main>
+        </div>
+      )}
+    </>
   );
 }
