@@ -11,6 +11,7 @@ const VALID_SLOTS = [
   "socks",
   "accessory",
   "cape",
+  "bike",
 ];
 
 export async function POST(request: NextRequest) {

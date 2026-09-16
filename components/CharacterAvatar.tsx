@@ -1,11 +1,14 @@
 "use client";
 
+import { Fragment, useId } from "react";
 import type { GearSlot } from "@/lib/gear/types";
+import { RAINBOW_PATTERN } from "@/lib/gear/types";
 
 export type EquippedItem = {
   icon: string;
   color: string;
   name: string;
+  pattern?: string | null;
 } | null;
 
 type CharacterAvatarProps = {
@@ -16,6 +19,10 @@ type CharacterAvatarProps = {
 
 const EMPTY_COLOR = "#3f3f46";
 const SKIN_COLOR = "#c98f65";
+const TIRE_COLOR = "#71717a";
+
+// De officiële UCI-wereldkampioenstrui-banden (van boven naar onder).
+const RAINBOW_BANDS = ["#0067b1", "#e2231a", "#231f20", "#ffd200", "#00a651"];
 
 export default function CharacterAvatar({
   equipment,
@@ -24,9 +31,18 @@ export default function CharacterAvatar({
 }: CharacterAvatarProps) {
   const clickable = Boolean(onSlotClick);
   const width = size === "lg" ? 200 : 90;
+  const gradientId = `rainbow-${useId()}`;
 
   function colorFor(slot: GearSlot) {
     return equipment[slot]?.color || EMPTY_COLOR;
+  }
+
+  function fillFor(slot: GearSlot) {
+    if (equipment[slot]?.pattern === RAINBOW_PATTERN) {
+      return `url(#${gradientId})`;
+    }
+
+    return colorFor(slot);
   }
 
   function titleFor(slot: GearSlot) {
@@ -47,18 +63,75 @@ export default function CharacterAvatar({
 
   return (
     <svg
-      viewBox="0 0 100 170"
+      viewBox="0 0 200 170"
       width={width}
-      height={width * 1.7}
+      height={width * 0.85}
       className="select-none"
     >
+      <defs>
+        {/* Harde kleurovergangen (geen vloeiende blend) zodat het echt op
+            horizontale banden lijkt, zoals de regenboogtrui. */}
+        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+          {RAINBOW_BANDS.map((bandColor, index) => {
+            const start = (index / RAINBOW_BANDS.length) * 100;
+            const end = ((index + 1) / RAINBOW_BANDS.length) * 100;
+
+            return (
+              <Fragment key={index}>
+                <stop offset={`${start}%`} stopColor={bandColor} />
+                <stop offset={`${end}%`} stopColor={bandColor} />
+              </Fragment>
+            );
+          })}
+        </linearGradient>
+      </defs>
+
+      {/* Racefiets — rechts naast de renner */}
+      {part(
+        "bike",
+        <g>
+          <circle cx="128" cy="140" r="20" fill="none" stroke={TIRE_COLOR} strokeWidth="5" />
+          <circle cx="128" cy="140" r="3" fill={TIRE_COLOR} />
+          <circle cx="188" cy="140" r="20" fill="none" stroke={TIRE_COLOR} strokeWidth="5" />
+          <circle cx="188" cy="140" r="3" fill={TIRE_COLOR} />
+
+          <path
+            d="M 128 140 L 152 126 L 145 90 M 152 126 L 172 88 M 145 90 L 172 88 L 188 140"
+            fill="none"
+            stroke={fillFor("bike")}
+            strokeWidth="6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+
+          <ellipse
+            cx="143"
+            cy="88"
+            rx="8"
+            ry="3"
+            fill={colorFor("bike")}
+            transform="rotate(-12 143 88)"
+          />
+
+          <path
+            d="M 172 88 Q 179 82 184 86"
+            fill="none"
+            stroke={colorFor("bike")}
+            strokeWidth="3"
+            strokeLinecap="round"
+          />
+
+          <circle cx="152" cy="126" r="4" fill={colorFor("bike")} />
+        </g>
+      )}
+
       {/* Cape — achter de rest, breder dan de romp zodat hij aan weerszijden
           zichtbaar naar buiten waait */}
       {part(
         "cape",
         <path
           d="M 40 48 L 60 48 Q 92 90 82 146 L 18 146 Q 8 90 40 48 Z"
-          fill={colorFor("cape")}
+          fill={fillFor("cape")}
           opacity={equipment.cape ? 1 : 0.3}
         />
       )}
@@ -66,11 +139,11 @@ export default function CharacterAvatar({
       {/* Armen (mouwen = jersey-kleur) + handschoenen */}
       {part(
         "jersey",
-        <rect x="16" y="50" width="12" height="44" rx="6" fill={colorFor("jersey")} />
+        <rect x="16" y="50" width="12" height="44" rx="6" fill={fillFor("jersey")} />
       )}
       {part(
         "jersey",
-        <rect x="72" y="50" width="12" height="44" rx="6" fill={colorFor("jersey")} />
+        <rect x="72" y="50" width="12" height="44" rx="6" fill={fillFor("jersey")} />
       )}
       {part(
         "gloves",
@@ -110,7 +183,7 @@ export default function CharacterAvatar({
       {/* Torso (jersey) */}
       {part(
         "jersey",
-        <rect x="30" y="46" width="40" height="56" rx="12" fill={colorFor("jersey")} />
+        <rect x="30" y="46" width="40" height="56" rx="12" fill={fillFor("jersey")} />
       )}
 
       {/* Accessoire: badge op de borst */}

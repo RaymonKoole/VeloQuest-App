@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import CharacterAvatar from "@/components/CharacterAvatar";
-import type { GearSlot } from "@/lib/gear/types";
+import { ALL_GEAR_SLOTS, type GearSlot } from "@/lib/gear/types";
 
 function Skeleton({ className = "" }: { className?: string }) {
   return (
@@ -210,7 +210,7 @@ export default function DashboardPage() {
           <p className="mt-1 text-sm text-neutral-400">
             {gearLoading
               ? "Laden..."
-              : `${gearItems.filter((item) => item.equipped).length}/9 sloten uitgerust`}
+              : `${gearItems.filter((item) => item.equipped).length}/${ALL_GEAR_SLOTS.length} sloten uitgerust`}
             {xpData ? ` · Level ${xpData.level}` : ""}
           </p>
           <p className="mt-1 text-sm text-[#d59a57]">Bekijk je character →</p>
