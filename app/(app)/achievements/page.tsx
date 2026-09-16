@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
-import Navbar from "@/components/Navbar";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -61,28 +60,25 @@ export default function AchievementsPage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-neutral-950 text-white">
-      <div className="mx-auto max-w-6xl px-6 py-10">
-        <Navbar active="/achievements" />
+    <>
+      <h1 className="text-4xl font-bold">
+        🏆 Achievements
+      </h1>
 
-        <h1 className="text-4xl font-bold">
-          🏆 Achievements
-        </h1>
+      <p className="mt-3 text-neutral-400">
+        Verzamel achievements en laat zien wat je hebt bereikt.
+      </p>
 
-        <p className="mt-3 text-neutral-400">
-          Verzamel achievements en laat zien wat je hebt bereikt.
+      {badgesLoading ? (
+        <p className="mt-8 text-sm text-neutral-400">
+          Achievements laden...
         </p>
-
-        {badgesLoading ? (
-          <p className="mt-8 text-sm text-neutral-400">
-            Achievements laden...
-          </p>
-        ) : badges.length === 0 ? (
-          <p className="mt-8 text-sm text-neutral-400">
-            Nog geen achievements beschikbaar.
-          </p>
-        ) : (
-          <div className="mt-8 space-y-10">
+      ) : badges.length === 0 ? (
+        <p className="mt-8 text-sm text-neutral-400">
+          Nog geen achievements beschikbaar.
+        </p>
+      ) : (
+        <div className="mt-8 space-y-10">
   {Object.entries(
     badges.reduce((groups: Record<string, any[]>, badge) => {
       const category = badge.category || "Cycling";
@@ -167,8 +163,7 @@ export default function AchievementsPage() {
     );
   })}
 </div>
-        )}
-      </div>
-    </main>
+      )}
+    </>
   );
 }
