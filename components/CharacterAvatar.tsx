@@ -34,7 +34,14 @@ export default function CharacterAvatar({
   const gradientId = `rainbow-${useId()}`;
 
   function colorFor(slot: GearSlot) {
-    return equipment[slot]?.color || EMPTY_COLOR;
+    if (equipment[slot]?.color) {
+      return equipment[slot]!.color;
+    }
+
+    // Fietsonderdelen zijn dunne lijnen/vormen die tegen de donkere
+    // achtergrond nauwelijks zichtbaar zijn met de (donkere) EMPTY_COLOR
+    // van kleding — een neutraal grijs blijft wel afleesbaar.
+    return slot.startsWith("bike_") ? TIRE_COLOR : EMPTY_COLOR;
   }
 
   function fillFor(slot: GearSlot) {
@@ -86,43 +93,66 @@ export default function CharacterAvatar({
         </linearGradient>
       </defs>
 
-      {/* Racefiets — rechts naast de renner */}
+      {/* Racefiets — rechts naast de renner, opgebouwd uit losse,
+          apart uitrustbare onderdelen */}
       {part(
-        "bike",
+        "bike_wheels",
         <g>
-          <circle cx="128" cy="140" r="20" fill="none" stroke={TIRE_COLOR} strokeWidth="5" />
-          <circle cx="128" cy="140" r="3" fill={TIRE_COLOR} />
-          <circle cx="188" cy="140" r="20" fill="none" stroke={TIRE_COLOR} strokeWidth="5" />
-          <circle cx="188" cy="140" r="3" fill={TIRE_COLOR} />
-
-          <path
-            d="M 128 140 L 152 126 L 145 90 M 152 126 L 172 88 M 145 90 L 172 88 L 188 140"
-            fill="none"
-            stroke={fillFor("bike")}
-            strokeWidth="6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-
-          <ellipse
-            cx="143"
-            cy="88"
-            rx="8"
-            ry="3"
-            fill={colorFor("bike")}
-            transform="rotate(-12 143 88)"
-          />
-
-          <path
-            d="M 172 88 Q 179 82 184 86"
-            fill="none"
-            stroke={colorFor("bike")}
-            strokeWidth="3"
-            strokeLinecap="round"
-          />
-
-          <circle cx="152" cy="126" r="4" fill={colorFor("bike")} />
+          <circle cx="128" cy="140" r="20" fill="none" stroke={fillFor("bike_wheels")} strokeWidth="5" />
+          <circle cx="128" cy="140" r="3" fill={colorFor("bike_wheels")} />
+          <circle cx="188" cy="140" r="20" fill="none" stroke={fillFor("bike_wheels")} strokeWidth="5" />
+          <circle cx="188" cy="140" r="3" fill={colorFor("bike_wheels")} />
         </g>
+      )}
+
+      {part(
+        "bike_groupset",
+        <g>
+          {/* Ketting van trapas naar achterwiel-naaf */}
+          <path
+            d="M 152 126 L 128 140"
+            fill="none"
+            stroke={colorFor("bike_groupset")}
+            strokeWidth="2"
+            strokeDasharray="2 2"
+          />
+          <circle cx="152" cy="126" r="4" fill={colorFor("bike_groupset")} />
+        </g>
+      )}
+
+      {part(
+        "bike_frame",
+        <path
+          d="M 128 140 L 152 126 L 145 90 M 152 126 L 172 88 M 145 90 L 172 88 L 188 140"
+          fill="none"
+          stroke={fillFor("bike_frame")}
+          strokeWidth="6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )}
+
+      {part(
+        "bike_saddle",
+        <ellipse
+          cx="143"
+          cy="88"
+          rx="8"
+          ry="3"
+          fill={fillFor("bike_saddle")}
+          transform="rotate(-12 143 88)"
+        />
+      )}
+
+      {part(
+        "bike_handlebar",
+        <path
+          d="M 172 88 Q 179 82 184 86"
+          fill="none"
+          stroke={fillFor("bike_handlebar")}
+          strokeWidth="3"
+          strokeLinecap="round"
+        />
       )}
 
       {/* Cape — achter de rest, breder dan de romp zodat hij aan weerszijden

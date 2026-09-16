@@ -1,18 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { ALL_GEAR_SLOTS } from "@/lib/gear/types";
 
-const VALID_SLOTS = [
-  "jersey",
-  "shorts",
-  "helmet",
-  "shoes",
-  "gloves",
-  "glasses",
-  "socks",
-  "accessory",
-  "cape",
-  "bike",
-];
+const VALID_SLOTS: string[] = ALL_GEAR_SLOTS;
 
 export async function POST(request: NextRequest) {
   try {
