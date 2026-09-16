@@ -8,10 +8,18 @@ export type GearSlot =
   | "socks"
   | "accessory"
   | "cape"
-  | "bike";
+  | "bike_frame"
+  | "bike_wheels"
+  | "bike_groupset"
+  | "bike_saddle"
+  | "bike_handlebar";
 
 export const ALL_GEAR_SLOTS: GearSlot[] = [
-  "bike",
+  "bike_frame",
+  "bike_wheels",
+  "bike_groupset",
+  "bike_saddle",
+  "bike_handlebar",
   "jersey",
   "shorts",
   "helmet",

@@ -13,7 +13,11 @@ const supabase = createClient(
 );
 
 const SLOT_LABELS: Record<GearSlot, string> = {
-  bike: "Racefiets",
+  bike_frame: "Frame",
+  bike_wheels: "Wielen",
+  bike_groupset: "Aandrijving",
+  bike_saddle: "Zadel",
+  bike_handlebar: "Stuur",
   jersey: "Shirt",
   shorts: "Broek",
   helmet: "Helm",

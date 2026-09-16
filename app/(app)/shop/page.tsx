@@ -32,7 +32,11 @@ function formatRequirement(item: { requiredSkill: string | null; requiredLevel: 
 }
 
 const SLOT_LABELS: Record<string, string> = {
-  bike: "🚲 Racefietsen",
+  bike_frame: "🚲 Frames",
+  bike_wheels: "🛞 Wielen",
+  bike_groupset: "⚙️ Aandrijving",
+  bike_saddle: "💺 Zadels",
+  bike_handlebar: "🔧 Sturen",
   jersey: "👕 Shirts",
   shorts: "🩳 Broeken",
   helmet: "⛑️ Helmen",
@@ -45,7 +49,11 @@ const SLOT_LABELS: Record<string, string> = {
 };
 
 const SLOT_ORDER = [
-  "bike",
+  "bike_frame",
+  "bike_wheels",
+  "bike_groupset",
+  "bike_saddle",
+  "bike_handlebar",
   "jersey",
   "shorts",
   "helmet",
