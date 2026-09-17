@@ -84,7 +84,7 @@ export default function SegmentsTab() {
         <div className="mt-8 rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
           <p className="text-neutral-400">
             Nog geen segmentgegevens gevonden. Synchroniseer je Strava-ritten
-            (bv. via "Verrijk nu" op de Wrapped-pagina) om ze hier te zien
+            (bv. via "Verrijk nu" op de Jaaroverzicht-pagina) om ze hier te zien
             verschijnen.
           </p>
         </div>

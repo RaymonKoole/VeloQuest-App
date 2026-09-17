@@ -7,6 +7,8 @@ import {
   ALL_QUESTS_COMPLETED_GATE,
   MAX_TOTAL_LEVEL_GATE,
 } from "@/lib/gear/types";
+import { skillNameNl } from "@/lib/skills/skillNameNl";
+import { rarityNl } from "@/lib/gear/rarityNl";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -19,25 +21,25 @@ function formatRequirement(item: { requiredSkill: string | null; requiredLevel: 
   }
 
   if (item.requiredSkill === ALL_BADGES_UNLOCKED_GATE) {
-    return "alle achievements ontgrendeld";
+    return "alle prestaties ontgrendeld";
   }
 
   if (item.requiredSkill === MAX_TOTAL_LEVEL_GATE) {
-    return `total level ${item.requiredLevel}`;
+    return `totaalniveau ${item.requiredLevel}`;
   }
 
   return item.requiredSkill
-    ? `${item.requiredSkill}-level ${item.requiredLevel}`
-    : `account-level ${item.requiredLevel}`;
+    ? `${skillNameNl(item.requiredSkill)}-niveau ${item.requiredLevel}`
+    : `account-niveau ${item.requiredLevel}`;
 }
 
 const SLOT_LABELS: Record<string, string> = {
-  bike_frame: "🚲 Frames",
+  bike_frame: "🚲 Fietsframes",
   bike_wheels: "🛞 Wielen",
   bike_groupset: "⚙️ Aandrijving",
   bike_saddle: "💺 Zadels",
   bike_handlebar: "🔧 Sturen",
-  jersey: "👕 Shirts",
+  jersey: "👕 Truien",
   shorts: "🩳 Broeken",
   helmet: "⛑️ Helmen",
   shoes: "👟 Schoenen",
@@ -155,10 +157,10 @@ export default function ShopPage() {
 
   return (
     <>
-      <h1 className="text-3xl font-bold">🛍️ Shop</h1>
+      <h1 className="text-3xl font-bold">🛍️ Winkel</h1>
       <p className="mt-1 text-neutral-400">
-        Verdien levels door te fietsen en speel zo nieuwe wielerkleding vrij.
-        Vereist level gehaald? Dan is het gratis van jou.
+        Verdien niveaus door te fietsen en speel zo nieuwe wielerkleding vrij.
+        Vereist niveau gehaald? Dan is het gratis van jou.
       </p>
 
       {message && (
@@ -168,7 +170,7 @@ export default function ShopPage() {
       )}
 
       {loading ? (
-        <p className="mt-8 text-sm text-neutral-400">Shop laden...</p>
+        <p className="mt-8 text-sm text-neutral-400">Winkel laden...</p>
       ) : error ? (
         <p className="mt-8 text-sm text-red-400">{error}</p>
       ) : (
@@ -197,7 +199,7 @@ export default function ShopPage() {
                             color: item.color,
                           }}
                         >
-                          {item.rarity}
+                          {rarityNl(item.rarity)}
                         </span>
                       </div>
                     </div>

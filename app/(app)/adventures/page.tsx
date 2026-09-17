@@ -18,7 +18,7 @@ export default function AdventuresPage() {
 
   return (
     <>
-      <h1 className="text-3xl font-bold">🗺️ Adventures</h1>
+      <h1 className="text-3xl font-bold">🗺️ Avonturen</h1>
       <p className="mt-1 text-neutral-400">
         Al je ritten, routekaart en Strava-segmenten op één plek.
       </p>

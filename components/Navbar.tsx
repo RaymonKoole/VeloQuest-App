@@ -4,11 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const NAV_ITEMS = [
-  { href: "/dashboard", label: "Home", icon: "🏠" },
-  { href: "/character", label: "Character", icon: "🚴" },
+  { href: "/dashboard", label: "Start", icon: "🏠" },
+  { href: "/character", label: "Personage", icon: "🚴" },
   { href: "/quests", label: "Quests", icon: "⚔️" },
-  { href: "/shop", label: "Shop", icon: "🛍️" },
-  { href: "/adventures", label: "Adventures", icon: "🗺️" },
+  { href: "/shop", label: "Winkel", icon: "🛍️" },
+  { href: "/adventures", label: "Avonturen", icon: "🗺️" },
 ];
 
 export default function Navbar() {
