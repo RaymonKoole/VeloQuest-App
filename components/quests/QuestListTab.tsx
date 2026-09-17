@@ -69,6 +69,18 @@ export default function QuestListTab() {
     .filter((quest) => quest.status === "completed")
     .reduce((sum, quest) => sum + Number(quest.reward_xp || 0), 0);
 
+  // Nog te doen (bezig/vergrendeld) bovenaan, voltooide quests onderaan —
+  // zo blijft duidelijk wat je nog te doen hebt.
+  const STATUS_RANK: Record<string, number> = {
+    in_progress: 0,
+    locked: 1,
+    completed: 2,
+  };
+
+  const sortedQuests = [...quests].sort(
+    (a, b) => (STATUS_RANK[a.status] ?? 1) - (STATUS_RANK[b.status] ?? 1)
+  );
+
   return (
     <>
       {/* "Quest Points"-achtige samenvatting, zoals Runescape's quest journal */}
@@ -94,7 +106,7 @@ export default function QuestListTab() {
           (grijs = vergrendeld, paars = bezig, groen = voltooid) — net als
           Runescape's quest journal, i.p.v. losse grote kaarten. */}
       <div className="mt-6 divide-y divide-neutral-800 overflow-hidden rounded-2xl border border-neutral-800">
-        {quests.map((quest) => {
+        {sortedQuests.map((quest) => {
           const isLocked = quest.status === "locked";
           const isCompleted = quest.status === "completed";
           const progress = Math.min(
