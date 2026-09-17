@@ -6,7 +6,7 @@ import AchievementDiaryTab from "@/components/quests/AchievementDiaryTab";
 
 const TABS = [
   { id: "quests", label: "⚔️ Quests" },
-  { id: "achievements", label: "🏆 Achievements" },
+  { id: "achievements", label: "🏆 Prestaties" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -18,7 +18,7 @@ export default function QuestsPage() {
     <>
       <h1 className="text-3xl font-bold">⚔️ Quests</h1>
       <p className="mt-1 text-neutral-400">
-        Voltooi quests, verdien XP en verzamel achievements.
+        Voltooi quests, verdien XP en verzamel prestaties.
       </p>
 
       <div className="mt-6 flex flex-wrap gap-2 border-b border-neutral-800 pb-4">

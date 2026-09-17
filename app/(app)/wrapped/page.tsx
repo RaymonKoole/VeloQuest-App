@@ -66,7 +66,7 @@ export default function WrappedPage() {
     }
 
     if (!response.ok) {
-      setError(json.error || "Wrapped kon niet worden geladen.");
+      setError(json.error || "Jaaroverzicht kon niet worden geladen.");
       return null;
     }
 
@@ -438,8 +438,8 @@ export default function WrappedPage() {
 
     result.push({
       emoji: "✨",
-      title: "Level & XP",
-      big: `Level ${data.level}`,
+      title: "Niveau & XP",
+      big: `Niveau ${data.level}`,
       sub: `${data.totalXp.toLocaleString("nl-NL")} XP verdiend`,
       gradient: "from-purple-600 via-fuchsia-700 to-pink-800",
     });
@@ -447,9 +447,9 @@ export default function WrappedPage() {
     if (data.totalBadges > 0) {
       result.push({
         emoji: "🏅",
-        title: "Achievements",
+        title: "Prestaties",
         big: `${data.unlockedBadges}/${data.totalBadges}`,
-        sub: "badges ontgrendeld",
+        sub: "prestaties ontgrendeld",
         gradient: "from-yellow-600 via-amber-700 to-orange-800",
       });
     }
@@ -493,7 +493,7 @@ export default function WrappedPage() {
 
   return (
     <>
-      <h1 className="text-3xl font-bold">✨ Wrapped</h1>
+      <h1 className="text-3xl font-bold">✨ Jaaroverzicht</h1>
 
       <p className="mt-1 text-neutral-400">
         Jouw fietsjaar in een notendop, gebaseerd op je Strava-ritten.
@@ -525,13 +525,13 @@ export default function WrappedPage() {
       )}
 
       {loading ? (
-        <p className="mt-8 text-sm text-neutral-400">Wrapped laden...</p>
+        <p className="mt-8 text-sm text-neutral-400">Jaaroverzicht laden...</p>
       ) : error ? (
         <p className="mt-8 text-sm text-red-400">{error}</p>
       ) : slides.length === 0 ? (
         <div className="mt-8 rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
           <p className="text-neutral-400">
-            Nog geen ritten gevonden. Koppel Strava en synchroniseer je activiteiten om je Wrapped te zien.
+            Nog geen ritten gevonden. Koppel Strava en synchroniseer je activiteiten om je jaaroverzicht te zien.
           </p>
         </div>
       ) : (

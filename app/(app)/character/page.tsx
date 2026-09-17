@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import CharacterAvatar from "@/components/CharacterAvatar";
 import { ALL_GEAR_SLOTS, type GearSlot } from "@/lib/gear/types";
 import { getSkillProgress } from "@/lib/progression/skillLevel";
+import { skillNameNl } from "@/lib/skills/skillNameNl";
 import Link from "next/link";
 
 const supabase = createClient(
@@ -169,11 +170,11 @@ export default function CharacterPage() {
 
   return (
     <>
-      <h1 className="text-3xl font-bold">🚴 Jouw character</h1>
+      <h1 className="text-3xl font-bold">🚴 Jouw personage</h1>
       <p className="mt-1 text-neutral-400">
         Rust kleding uit die je hebt vrijgespeeld in de{" "}
         <Link href="/shop" className="text-[#d59a57] hover:underline">
-          shop
+          winkel
         </Link>
         .
       </p>
@@ -185,7 +186,7 @@ export default function CharacterPage() {
       )}
 
       {loading ? (
-        <p className="mt-8 text-sm text-neutral-400">Character laden...</p>
+        <p className="mt-8 text-sm text-neutral-400">Personage laden...</p>
       ) : error ? (
         <p className="mt-8 text-sm text-red-400">{error}</p>
       ) : (
@@ -204,14 +205,14 @@ export default function CharacterPage() {
             <div className="flex gap-6">
               {xp && (
                 <div className="text-center">
-                  <p className="text-xs text-neutral-500">Account-level</p>
+                  <p className="text-xs text-neutral-500">Account-niveau</p>
                   <p className="text-2xl font-bold text-purple-400">{xp.level}</p>
                 </div>
               )}
 
               {skills.length > 0 && (
                 <div className="text-center">
-                  <p className="text-xs text-neutral-500">Total level</p>
+                  <p className="text-xs text-neutral-500">Totaalniveau</p>
                   <p className="text-2xl font-bold text-amber-400">{totalLevel}</p>
                 </div>
               )}
@@ -239,7 +240,7 @@ export default function CharacterPage() {
 
                   {(ownedBySlot[openSlot] || []).length === 0 ? (
                     <p className="px-3 py-2 text-sm text-neutral-600">
-                      Nog niks vrijgespeeld voor dit slot — bezoek de shop.
+                      Nog niks vrijgespeeld voor dit slot — bezoek de winkel.
                     </p>
                   ) : (
                     (ownedBySlot[openSlot] || []).map((item) => (
@@ -264,7 +265,7 @@ export default function CharacterPage() {
           </div>
 
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
-            <h2 className="text-lg font-semibold">Skills</h2>
+            <h2 className="text-lg font-semibold">Vaardigheden</h2>
 
             <div className="mt-4 space-y-3">
               {skills.map((skill) => {
@@ -274,7 +275,7 @@ export default function CharacterPage() {
                   <div key={skill.id} className="flex items-center gap-3">
                     <span className="w-6 text-center">{skill.icon}</span>
                     <span className="w-24 text-sm text-neutral-300">
-                      {skill.name}
+                      {skillNameNl(skill.name)}
                     </span>
                     <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-neutral-800">
                       <div

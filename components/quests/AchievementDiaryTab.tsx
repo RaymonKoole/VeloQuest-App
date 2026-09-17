@@ -11,19 +11,19 @@ const supabase = createClient(
 function getCategoryLabel(category: string) {
   switch (category) {
     case "Cycling":
-      return "🚴 Cycling";
+      return "🚴 Fietsen";
     case "Climbing":
-      return "⛰️ Climbing";
+      return "⛰️ Klimmen";
     case "Exploration":
-      return "🗺️ Exploration";
+      return "🗺️ Verkenning";
     case "Performance":
-      return "⚡ Performance";
+      return "⚡ Prestatie";
     case "Streak":
-      return "🔥 Streak";
+      return "🔥 Reeks";
     case "Challenge":
-      return "🎯 Challenge";
+      return "🎯 Uitdaging";
     case "Secret":
-      return "❓ Secret";
+      return "❓ Geheim";
     default:
       return `🏆 ${category}`;
   }
@@ -62,11 +62,11 @@ export default function AchievementDiaryTab() {
   }, []);
 
   if (badgesLoading) {
-    return <p className="mt-8 text-sm text-neutral-400">Achievements laden...</p>;
+    return <p className="mt-8 text-sm text-neutral-400">Prestaties laden...</p>;
   }
 
   if (badges.length === 0) {
-    return <p className="mt-8 text-sm text-neutral-400">Nog geen achievements beschikbaar.</p>;
+    return <p className="mt-8 text-sm text-neutral-400">Nog geen prestaties beschikbaar.</p>;
   }
 
   const categories = Object.entries(

@@ -206,14 +206,14 @@ export default function DashboardPage() {
         )}
 
         <div>
-          <p className="text-lg font-semibold">🚴 Jouw character</p>
+          <p className="text-lg font-semibold">🚴 Jouw personage</p>
           <p className="mt-1 text-sm text-neutral-400">
             {gearLoading
               ? "Laden..."
               : `${gearItems.filter((item) => item.equipped).length}/${ALL_GEAR_SLOTS.length} sloten uitgerust`}
-            {xpData ? ` · Level ${xpData.level}` : ""}
+            {xpData ? ` · Niveau ${xpData.level}` : ""}
           </p>
-          <p className="mt-1 text-sm text-[#d59a57]">Bekijk je character →</p>
+          <p className="mt-1 text-sm text-[#d59a57]">Bekijk je personage →</p>
         </div>
       </Link>
 
@@ -278,7 +278,7 @@ export default function DashboardPage() {
           className="block rounded-2xl border border-neutral-800 bg-neutral-900 p-6 transition hover:border-purple-500/40"
         >
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">🗺️ Adventures</h2>
+            <h2 className="text-lg font-semibold">🗺️ Avonturen</h2>
             <span className="text-sm text-purple-400">Bekijk →</span>
           </div>
 
@@ -292,7 +292,7 @@ export default function DashboardPage() {
           className="block rounded-2xl border border-neutral-800 bg-neutral-900 p-6 transition hover:border-purple-500/40"
         >
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">✨ Wrapped</h2>
+            <h2 className="text-lg font-semibold">✨ Jaaroverzicht</h2>
             <span className="text-sm text-purple-400">Bekijk →</span>
           </div>
 
