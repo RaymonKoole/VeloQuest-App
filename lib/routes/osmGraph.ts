@@ -11,6 +11,8 @@ export type GraphEdge = {
   to: number;
   distanceM: number;
   ridden: boolean;
+  /** OSM highway-tag van deze weg (bijv. "cycleway", "primary"), voor weergave van het wegtype. */
+  highway: string | null;
 };
 
 export type RoadGraph = {
@@ -43,14 +45,15 @@ function addEdge(
   adjacency: Map<number, GraphEdge[]>,
   from: number,
   to: number,
-  distanceM: number
+  distanceM: number,
+  highway: string | null
 ) {
   const existing = adjacency.get(from);
 
   if (existing) {
-    existing.push({ to, distanceM, ridden: false });
+    existing.push({ to, distanceM, ridden: false, highway });
   } else {
-    adjacency.set(from, [{ to, distanceM, ridden: false }]);
+    adjacency.set(from, [{ to, distanceM, ridden: false, highway }]);
   }
 }
 
@@ -100,6 +103,7 @@ out skel qt;
     }
 
     const oneway = element.tags?.oneway === "yes";
+    const highway: string | null = element.tags?.highway ?? null;
     const wayNodes: number[] = element.nodes;
 
     for (let i = 0; i < wayNodes.length - 1; i++) {
@@ -117,10 +121,10 @@ out skel qt;
         toNode.lng
       );
 
-      addEdge(adjacency, fromNode.id, toNode.id, distanceM);
+      addEdge(adjacency, fromNode.id, toNode.id, distanceM, highway);
 
       if (!oneway) {
-        addEdge(adjacency, toNode.id, fromNode.id, distanceM);
+        addEdge(adjacency, toNode.id, fromNode.id, distanceM, highway);
       }
     }
   }
