@@ -24,16 +24,11 @@ function formatDuration(seconds: number) {
   return `${minutes}:${String(secs).padStart(2, "0")}`;
 }
 
-function formatPopularity(athleteCount: number | null, effortCount: number | null) {
-  if (athleteCount == null) {
-    return null;
-  }
-
-  const athletes = athleteCount.toLocaleString("nl-NL");
-
-  return effortCount != null
-    ? `${athletes} wielrenners · ${effortCount.toLocaleString("nl-NL")}x gereden`
-    : `${athletes} wielrenners`;
+function rankBadge(index: number) {
+  if (index === 0) return "🥇";
+  if (index === 1) return "🥈";
+  if (index === 2) return "🥉";
+  return `${index + 1}`;
 }
 
 export default function SegmentsTab() {
@@ -73,7 +68,7 @@ export default function SegmentsTab() {
   return (
     <>
       <p className="text-neutral-400">
-        Jouw persoonlijke records en meest bereden Strava-segmenten.
+        De segmenten die jij het vaakst rijdt, en de segmenten die bij andere Strava-gebruikers het populairst zijn.
       </p>
 
       {loading ? (
@@ -89,99 +84,29 @@ export default function SegmentsTab() {
           </p>
         </div>
       ) : (
-        <div className="mt-8 space-y-10">
-          <section>
-            <h2 className="text-2xl font-bold">🏆 Jouw persoonlijke records</h2>
-            <p className="mt-1 text-sm text-neutral-500">
-              {data.totalPrSegments > data.prSegments.length
-                ? `Top ${data.prSegments.length} van je ${data.totalPrSegments} PR's, gesorteerd op populariteit van het segment`
-                : `${data.prSegments.length} segment(en) waar je de snelste van jezelf op staat`}
-            </p>
+        <div className="mt-8 space-y-8">
+          <section className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#d59a57]/15 text-xl">
+                🔁
+              </span>
 
-            {data.prSegments.length === 0 ? (
-              <p className="mt-4 text-sm text-neutral-500">
-                Nog geen PR's gevonden op verrijkte ritten.
-              </p>
-            ) : (
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                {data.prSegments.map((segment: any) => {
-                  const popularity = formatPopularity(segment.athleteCount, segment.effortCount);
-
-                  return (
-                    <div
-                      key={segment.segmentId}
-                      className="rounded-xl border border-amber-500/30 bg-neutral-900 p-4"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="font-semibold">{segment.name}</h3>
-
-                        {segment.bestKomRank && (
-                          <span
-                            title={`Top 10 op dit segment (#${segment.bestKomRank})`}
-                            className="shrink-0 rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-medium text-amber-400"
-                          >
-                            👑 #{segment.bestKomRank}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                        <p className="text-xl font-bold text-[#d59a57]">
-                          {formatDuration(segment.bestElapsedSeconds)}
-                        </p>
-
-                        {segment.distanceKm != null && (
-                          <p className="text-sm text-neutral-400">
-                            {segment.distanceKm} km
-                            {segment.averageGrade != null
-                              ? ` · ${segment.averageGrade > 0 ? "+" : ""}${segment.averageGrade}%`
-                              : ""}
-                          </p>
-                        )}
-                      </div>
-
-                      <p className="mt-1 text-xs text-neutral-500">
-                        {segment.attempts}x gereden
-                        {segment.lastRiddenDate
-                          ? ` · laatst op ${new Date(segment.lastRiddenDate).toLocaleDateString("nl-NL")}`
-                          : ""}
-                      </p>
-
-                      {popularity && (
-                        <p className="mt-1 text-xs text-neutral-600">
-                          🌍 {popularity}
-                          {segment.starCount ? (
-                            <span title="Aantal Strava-gebruikers dat dit segment als favoriet heeft gemarkeerd (een 'ster' geven, vergelijkbaar met bookmarken)">
-                              {" "}
-                              · ⭐ {segment.starCount} favoriet
-                            </span>
-                          ) : (
-                            ""
-                          )}
-                        </p>
-                      )}
-                    </div>
-                  );
-                })}
+              <div>
+                <h2 className="text-xl font-bold">Meest bereden segmenten</h2>
+                <p className="text-sm text-neutral-500">De segmenten die je het vaakst hebt gereden</p>
               </div>
-            )}
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-bold">🔁 Meest bereden segmenten</h2>
-            <p className="mt-1 text-sm text-neutral-500">
-              De segmenten die je het vaakst hebt gereden
-            </p>
+            </div>
 
             {data.mostRiddenSegments.length === 0 ? (
               <p className="mt-4 text-sm text-neutral-500">
                 Nog geen segmenten gevonden.
               </p>
             ) : (
-              <div className="mt-4 overflow-x-auto rounded-2xl border border-neutral-800">
+              <div className="mt-5 overflow-x-auto rounded-xl border border-neutral-800">
                 <table className="w-full text-left text-sm">
-                  <thead className="bg-neutral-900 text-neutral-400">
+                  <thead className="bg-neutral-950/60 text-xs uppercase tracking-wide text-neutral-500">
                     <tr>
+                      <th className="px-4 py-3 font-medium">#</th>
                       <th className="px-4 py-3 font-medium">Segment</th>
                       <th className="px-4 py-3 font-medium">Afstand</th>
                       <th className="px-4 py-3 font-medium">Gem. helling</th>
@@ -192,9 +117,15 @@ export default function SegmentsTab() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-800">
-                    {data.mostRiddenSegments.map((segment: any) => (
-                      <tr key={segment.segmentId} className="bg-neutral-950">
-                        <td className="px-4 py-3">
+                    {data.mostRiddenSegments.map((segment: any, index: number) => (
+                      <tr
+                        key={segment.segmentId}
+                        className={`transition hover:bg-neutral-800/60 ${
+                          index % 2 === 0 ? "bg-neutral-950/40" : "bg-neutral-950/10"
+                        }`}
+                      >
+                        <td className="px-4 py-3 text-neutral-400">{rankBadge(index)}</td>
+                        <td className="px-4 py-3 font-medium">
                           {segment.name}
                           {segment.bestKomRank && (
                             <span
@@ -213,7 +144,7 @@ export default function SegmentsTab() {
                             ? `${segment.averageGrade > 0 ? "+" : ""}${segment.averageGrade}%`
                             : "-"}
                         </td>
-                        <td className="px-4 py-3">{segment.attempts}x</td>
+                        <td className="px-4 py-3 font-semibold text-[#d59a57]">{segment.attempts}x</td>
                         <td className="px-4 py-3">
                           {formatDuration(segment.bestElapsedSeconds)}
                         </td>
@@ -232,7 +163,7 @@ export default function SegmentsTab() {
               </div>
             )}
 
-            <p className="mt-2 text-xs text-neutral-600">
+            <p className="mt-3 text-xs text-neutral-600">
               "Populariteit" is het aantal unieke Strava-gebruikers dat dit
               segment ooit heeft gereden. ⭐ is het aantal Strava-gebruikers
               dat het segment als favoriet heeft gemarkeerd (vergelijkbaar
@@ -245,22 +176,30 @@ export default function SegmentsTab() {
             </p>
           </section>
 
-          <section>
-            <h2 className="text-2xl font-bold">⭐ Populairste segmenten</h2>
-            <p className="mt-1 text-sm text-neutral-500">
-              Van de segmenten die jij hebt gereden: welke worden door
-              Strava-gebruikers het vaakst als favoriet gemarkeerd (⭐)
-            </p>
+          <section className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-xl">
+                ⭐
+              </span>
+
+              <div>
+                <h2 className="text-xl font-bold">Populairste segmenten</h2>
+                <p className="text-sm text-neutral-500">
+                  Van de segmenten die jij hebt gereden: welke worden door Strava-gebruikers het vaakst als favoriet gemarkeerd
+                </p>
+              </div>
+            </div>
 
             {!data.mostPopularSegments || data.mostPopularSegments.length === 0 ? (
               <p className="mt-4 text-sm text-neutral-500">
                 Nog geen populariteitsgegevens gevonden.
               </p>
             ) : (
-              <div className="mt-4 overflow-x-auto rounded-2xl border border-neutral-800">
+              <div className="mt-5 overflow-x-auto rounded-xl border border-neutral-800">
                 <table className="w-full text-left text-sm">
-                  <thead className="bg-neutral-900 text-neutral-400">
+                  <thead className="bg-neutral-950/60 text-xs uppercase tracking-wide text-neutral-500">
                     <tr>
+                      <th className="px-4 py-3 font-medium">#</th>
                       <th className="px-4 py-3 font-medium">Segment</th>
                       <th className="px-4 py-3 font-medium">⭐ Favorieten</th>
                       <th className="px-4 py-3 font-medium">Wielrenners</th>
@@ -269,9 +208,15 @@ export default function SegmentsTab() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-800">
-                    {data.mostPopularSegments.map((segment: any) => (
-                      <tr key={segment.segmentId} className="bg-neutral-950">
-                        <td className="px-4 py-3">{segment.name}</td>
+                    {data.mostPopularSegments.map((segment: any, index: number) => (
+                      <tr
+                        key={segment.segmentId}
+                        className={`transition hover:bg-neutral-800/60 ${
+                          index % 2 === 0 ? "bg-neutral-950/40" : "bg-neutral-950/10"
+                        }`}
+                      >
+                        <td className="px-4 py-3 text-neutral-400">{rankBadge(index)}</td>
+                        <td className="px-4 py-3 font-medium">{segment.name}</td>
                         <td className="px-4 py-3 font-semibold text-amber-400">
                           ⭐ {segment.starCount.toLocaleString("nl-NL")}
                         </td>
