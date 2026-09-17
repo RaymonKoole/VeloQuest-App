@@ -469,16 +469,19 @@ export function generatePointToPointRoute(
 
   let traveled = 0;
   let riddenM = 0;
+  const highways: (string | null)[] = [];
 
   for (let i = 0; i < path.length - 1; i++) {
     const edges = graph.adjacency.get(path[i]) || [];
     const edge = edges.find((e) => e.to === path[i + 1]);
 
     if (!edge) {
+      highways.push(null);
       continue;
     }
 
     traveled += edge.distanceM;
+    highways.push(edge.highway);
 
     if (edge.ridden) {
       riddenM += edge.distanceM;
@@ -495,5 +498,7 @@ export function generatePointToPointRoute(
     distanceM: traveled,
     riddenM,
     newM: Math.max(0, traveled - riddenM),
+    /** Highway-tag per stuk tussen points[i] en points[i+1] (lengte points.length - 1). */
+    highways,
   };
 }

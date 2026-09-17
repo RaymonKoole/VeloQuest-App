@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ points: result.points });
+    return NextResponse.json({ points: result.points, highways: result.highways });
   } catch (error) {
     console.error("Route-snap error:", error);
 

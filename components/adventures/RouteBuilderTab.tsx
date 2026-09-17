@@ -31,10 +31,12 @@ function slugifyFileName(name: string) {
   return slug || "veloquest-route";
 }
 
+type SnapResult = { points: [number, number][]; highways: (string | null)[] };
+
 async function snapSegment(
   from: [number, number],
   to: [number, number]
-): Promise<[number, number][] | null> {
+): Promise<SnapResult | null> {
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -61,7 +63,7 @@ async function snapSegment(
     }
 
     const data = await response.json();
-    return data.points as [number, number][];
+    return { points: data.points, highways: data.highways || [] };
   } catch {
     return null;
   }
@@ -89,13 +91,13 @@ export default function RouteBuilderTab() {
       { status: "loading", points: [previous, newPoint] },
     ]);
 
-    snapSegment(previous, newPoint).then((points) => {
+    snapSegment(previous, newPoint).then((result) => {
       setSegments((current) => {
         const updated = [...current];
 
         if (updated[segmentIndex]) {
-          updated[segmentIndex] = points
-            ? { status: "done", points }
+          updated[segmentIndex] = result
+            ? { status: "done", points: result.points, highways: result.highways }
             : { status: "error", points: [previous, newPoint] };
         }
 
@@ -137,13 +139,13 @@ export default function RouteBuilderTab() {
     if (hasPrev && hasNext && prevPoint && nextPoint) {
       const insertAt = index - 1;
 
-      snapSegment(prevPoint, nextPoint).then((points) => {
+      snapSegment(prevPoint, nextPoint).then((result) => {
         setSegments((current) => {
           const updated = [...current];
 
           if (updated[insertAt]) {
-            updated[insertAt] = points
-              ? { status: "done", points }
+            updated[insertAt] = result
+              ? { status: "done", points: result.points, highways: result.highways }
               : { status: "error", points: [prevPoint, nextPoint] };
           }
 
@@ -216,7 +218,9 @@ export default function RouteBuilderTab() {
     <>
       <p className="text-neutral-400">
         Klik op de kaart om zelf een route uit te stippelen, net als in Komoot. Tussen de punten
-        wordt automatisch de weg gevolgd op basis van OpenStreetMap-data.
+        wordt automatisch de weg gevolgd op basis van OpenStreetMap-data, met een kleur per
+        wegtype (zie de legenda op de kaart) zodat je kunt zien of het geschikt is voor een
+        racefiets.
       </p>
 
       <div className="mt-4 flex flex-wrap items-end gap-3 rounded-2xl border border-neutral-800 bg-neutral-900 p-4">
