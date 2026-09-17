@@ -21,7 +21,11 @@ export type RoadGraph = {
 // Alleen wegen en fietspaden die geschikt zijn voor racefietsen/wielrennen.
 // "track" (landbouw-/bospaden) en "path" (generieke, vaak onverharde paden)
 // zijn bewust weggelaten — dat zijn de OSM-tags die in de praktijk bijna
-// altijd gravel- of grindpaden opleveren.
+// altijd gravel- of grindpaden opleveren. "service" (opritten, parkeerterrein-
+// toegangswegen e.d.) is ook weggelaten: dat type is verreweg het talrijkste
+// in elk bewoond gebied, levert vrijwel nooit een zinvolle wielerroute op, en
+// blaast de Overpass-query onnodig op — wat het risico op een timeout flink
+// verhoogt.
 const BIKE_HIGHWAY_TYPES = [
   "primary",
   "primary_link",
@@ -32,7 +36,6 @@ const BIKE_HIGHWAY_TYPES = [
   "unclassified",
   "residential",
   "living_street",
-  "service",
   "cycleway",
 ].join("|");
 
