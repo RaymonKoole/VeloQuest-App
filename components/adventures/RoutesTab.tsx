@@ -30,74 +30,6 @@ export default function RoutesTab() {
   const [segmentsLoading, setSegmentsLoading] = useState(false);
   const [segmentsError, setSegmentsError] = useState("");
 
-  const [startAddress, setStartAddress] = useState("");
-  const [isLoop, setIsLoop] = useState(true);
-  const [endAddress, setEndAddress] = useState("");
-  const [distanceKm, setDistanceKm] = useState("30");
-  const [desiredNewKm, setDesiredNewKm] = useState("");
-  const [direction, setDirection] = useState("");
-  const [generating, setGenerating] = useState(false);
-  const [generateError, setGenerateError] = useState("");
-  const [generatedRoute, setGeneratedRoute] = useState<[number, number][] | null>(null);
-  const [generatedStats, setGeneratedStats] = useState<{
-    distanceKm: number;
-    newKm: number;
-    riddenKm: number;
-    startDisplayName: string;
-    endDisplayName: string | null;
-  } | null>(null);
-
-  async function handleGenerate(e: React.FormEvent) {
-    e.preventDefault();
-
-    setGenerating(true);
-    setGenerateError("");
-    setGeneratedRoute(null);
-    setGeneratedStats(null);
-
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session) {
-      window.location.href = "/login";
-      return;
-    }
-
-    const response = await fetch("/api/routes/generate", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({
-        startAddress,
-        endAddress: isLoop ? undefined : endAddress,
-        distanceKm: Number(distanceKm),
-        desiredNewKm: desiredNewKm || undefined,
-        direction: direction || undefined,
-      }),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      setGenerateError(data.error || "Route genereren is mislukt.");
-      setGenerating(false);
-      return;
-    }
-
-    setGeneratedRoute(data.points);
-    setGeneratedStats({
-      distanceKm: data.distanceKm,
-      newKm: data.newKm,
-      riddenKm: data.riddenKm,
-      startDisplayName: data.startDisplayName,
-      endDisplayName: data.endDisplayName ?? null,
-    });
-    setGenerating(false);
-  }
-
   useEffect(() => {
     async function loadRoutes() {
       const {
@@ -276,177 +208,12 @@ export default function RoutesTab() {
         Land en plaats worden automatisch bepaald op basis van de startlocatie van elke rit (via OpenStreetMap).
       </p>
 
-      {/* Route genereren */}
-      <div className="mt-6 rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
-        <h2 className="text-lg font-semibold">✨ Genereer een route</h2>
-
-        <p className="mt-1 text-sm text-neutral-400">
-          Kiest waar mogelijk wegen die je nog niet hebt gefietst. Geen garantie op een exacte afstand — probeer
-          "Genereer opnieuw" voor een andere suggestie.
-        </p>
-
-        <form
-          onSubmit={handleGenerate}
-          className="mt-4 flex flex-wrap items-end gap-3"
-        >
-          <div className="flex-1 min-w-[220px]">
-            <label className="mb-1 block text-xs text-neutral-500">
-              Startadres
-            </label>
-
-            <input
-              type="text"
-              required
-              value={startAddress}
-              onChange={(e) => setStartAddress(e.target.value)}
-              placeholder="bijv. Larikslaan, Leusden"
-              className="w-full rounded-xl border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-white"
-            />
-          </div>
-
-          <div className="flex items-center gap-2 pb-2">
-            <input
-              id="isLoop"
-              type="checkbox"
-              checked={isLoop}
-              onChange={(e) => setIsLoop(e.target.checked)}
-              className="h-4 w-4 rounded border-neutral-700 bg-neutral-950"
-            />
-            <label htmlFor="isLoop" className="text-sm text-neutral-300">
-              🔁 Rondje (start = eindpunt)
-            </label>
-          </div>
-
-          {!isLoop && (
-            <div className="flex-1 min-w-[220px]">
-              <label className="mb-1 block text-xs text-neutral-500">
-                Eindadres
-              </label>
-
-              <input
-                type="text"
-                required={!isLoop}
-                value={endAddress}
-                onChange={(e) => setEndAddress(e.target.value)}
-                placeholder="bijv. Stationsplein, Amersfoort"
-                className="w-full rounded-xl border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-white"
-              />
-            </div>
-          )}
-
-          {isLoop && (
-            <>
-              <div className="w-28">
-                <label className="mb-1 block text-xs text-neutral-500">
-                  Afstand (km)
-                </label>
-
-                <input
-                  type="number"
-                  min={1}
-                  max={150}
-                  required
-                  value={distanceKm}
-                  onChange={(e) => setDistanceKm(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-white"
-                />
-              </div>
-
-              <div className="w-36">
-                <label className="mb-1 block text-xs text-neutral-500">
-                  Nieuw (km, optioneel)
-                </label>
-
-                <input
-                  type="number"
-                  min={0}
-                  step="0.5"
-                  value={desiredNewKm}
-                  onChange={(e) => setDesiredNewKm(e.target.value)}
-                  placeholder="geen voorkeur"
-                  className="w-full rounded-xl border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-white"
-                />
-              </div>
-
-              <div className="w-40">
-                <label className="mb-1 block text-xs text-neutral-500">
-                  Richting (optioneel)
-                </label>
-
-                <select
-                  value={direction}
-                  onChange={(e) => setDirection(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-white"
-                >
-                  <option value="">Geen voorkeur</option>
-                  <option value="N">Noord</option>
-                  <option value="NO">Noordoost</option>
-                  <option value="O">Oost</option>
-                  <option value="ZO">Zuidoost</option>
-                  <option value="Z">Zuid</option>
-                  <option value="ZW">Zuidwest</option>
-                  <option value="W">West</option>
-                  <option value="NW">Noordwest</option>
-                </select>
-              </div>
-            </>
-          )}
-
-          <button
-            type="submit"
-            disabled={generating}
-            className="rounded-xl bg-[#d59a57] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
-          >
-            {generating
-              ? "Genereren..."
-              : generatedRoute
-              ? "Genereer opnieuw"
-              : "Genereer route"}
-          </button>
-        </form>
-
-        {generateError && (
-          <p className="mt-3 text-sm text-red-400">{generateError}</p>
-        )}
-
-        {generatedStats && (
-          <div className="mt-4 flex flex-wrap gap-6 text-sm">
-            <div>
-              <p className="text-neutral-500">Startpunt</p>
-              <p className="text-neutral-200">{generatedStats.startDisplayName}</p>
-            </div>
-
-            {generatedStats.endDisplayName && (
-              <div>
-                <p className="text-neutral-500">Eindpunt</p>
-                <p className="text-neutral-200">{generatedStats.endDisplayName}</p>
-              </div>
-            )}
-
-            <div>
-              <p className="text-neutral-500">Totale afstand</p>
-              <p className="font-semibold text-cyan-400">{generatedStats.distanceKm} km</p>
-            </div>
-
-            <div>
-              <p className="text-neutral-500">Nieuwe wegen</p>
-              <p className="font-semibold text-cyan-400">{generatedStats.newKm} km</p>
-            </div>
-
-            <div>
-              <p className="text-neutral-500">Bekende wegen</p>
-              <p className="text-neutral-200">{generatedStats.riddenKm} km</p>
-            </div>
-          </div>
-        )}
-      </div>
-
       <div className="mt-6 h-[520px] overflow-hidden rounded-2xl border border-neutral-800">
-        {loading || generating ? (
+        {loading ? (
           <div className="flex h-full items-center justify-center text-neutral-400">
-            {generating ? "Route genereren..." : "Routes laden..."}
+            Routes laden...
           </div>
-        ) : filteredActivities.length === 0 && !generatedRoute ? (
+        ) : filteredActivities.length === 0 ? (
           <div className="flex h-full items-center justify-center px-6 text-center text-neutral-400">
             {activities.length === 0
               ? "Nog geen ritten met locatiegegevens gevonden. Synchroniseer je Strava-activiteiten opnieuw vanaf het dashboard."
@@ -459,7 +226,6 @@ export default function RoutesTab() {
         ) : (
           <RoutesMap
             activities={filteredActivities}
-            generatedRoute={generatedRoute || undefined}
             showAllActivities={showAllActivities}
             dedupedSegments={dedupedSegments}
           />

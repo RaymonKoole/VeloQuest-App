@@ -13,6 +13,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { decodePolyline } from "@/lib/routes/decodePolyline";
 import { haversineDistanceMeters } from "@/lib/routes/haversine";
+import { buildGpx, slugifyFileName } from "@/lib/routes/buildGpx";
 import type { RouteSegment } from "@/lib/routes/dedupeRouteSegments";
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -96,22 +97,17 @@ function clusterIcon(count: number) {
 
 function FitBounds({
   activities,
-  generatedRoute,
   selectedPoints,
 }: {
   activities: RouteActivity[];
-  generatedRoute?: [number, number][];
   selectedPoints: [number, number][] | null;
 }) {
   const map = useMap();
 
   useEffect(() => {
-    const points: [number, number][] = [
-      ...activities.map(
-        (activity) => [activity.start_lat, activity.start_lng] as [number, number]
-      ),
-      ...(generatedRoute || []),
-    ];
+    const points: [number, number][] = activities.map(
+      (activity) => [activity.start_lat, activity.start_lng] as [number, number]
+    );
 
     if (points.length === 0) {
       return;
@@ -120,7 +116,7 @@ function FitBounds({
     map.fitBounds(L.latLngBounds(points), { padding: [40, 40] });
     // Only re-fit to the full data set when the data itself changes, not on selection
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activities, generatedRoute, map]);
+  }, [activities, map]);
 
   useEffect(() => {
     if (selectedPoints && selectedPoints.length > 1) {
@@ -131,14 +127,31 @@ function FitBounds({
   return null;
 }
 
+function downloadActivityGpx(activity: RouteActivity, points: [number, number][]) {
+  const gpx = buildGpx(
+    points.map(([lat, lng]) => ({ lat, lng })),
+    activity.name || "Fietsrit"
+  );
+
+  const blob = new Blob([gpx], { type: "application/gpx+xml" });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${slugifyFileName(activity.name || "veloquest-rit")}.gpx`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  URL.revokeObjectURL(url);
+}
+
 export default function RoutesMap({
   activities,
-  generatedRoute,
   showAllActivities = true,
   dedupedSegments = [],
 }: {
   activities: RouteActivity[];
-  generatedRoute?: [number, number][];
   showAllActivities?: boolean;
   dedupedSegments?: RouteSegment[];
 }) {
@@ -342,6 +355,19 @@ export default function RoutesMap({
                           {activity.country ? `, ${activity.country}` : ""}
                         </p>
                       )}
+
+                      {activityPolylines.get(activity.id) && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            downloadActivityGpx(activity, activityPolylines.get(activity.id)!);
+                          }}
+                          className="mt-1 rounded-lg bg-neutral-800 px-2 py-1 text-xs font-semibold text-white hover:bg-neutral-700"
+                        >
+                          ⬇️ GPX
+                        </button>
+                      )}
                     </div>
                   ))}
 
@@ -357,24 +383,7 @@ export default function RoutesMap({
         );
       })}
 
-      {generatedRoute && generatedRoute.length > 1 && (
-        <Polyline
-          positions={generatedRoute}
-          pathOptions={{
-            color: "#22d3ee",
-            weight: 5,
-            opacity: 0.95,
-            dashArray: "1, 10",
-            lineCap: "round",
-          }}
-        />
-      )}
-
-      <FitBounds
-        activities={activities}
-        generatedRoute={generatedRoute}
-        selectedPoints={selectedPoints}
-      />
+      <FitBounds activities={activities} selectedPoints={selectedPoints} />
 
       {selectedIds && (
         <div className="leaflet-top leaflet-right">

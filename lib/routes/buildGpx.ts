@@ -7,6 +7,16 @@ function escapeXml(value: string) {
     .replace(/'/g, "&apos;");
 }
 
+export function slugifyFileName(name: string) {
+  const slug = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return slug || "veloquest-route";
+}
+
 export function buildGpx(points: { lat: number; lng: number }[], name: string) {
   const trkpts = points
     .map((point) => `      <trkpt lat="${point.lat}" lon="${point.lng}"></trkpt>`)

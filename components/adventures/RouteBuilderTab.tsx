@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { createClient } from "@supabase/supabase-js";
 import { haversineDistanceMeters } from "@/lib/routes/haversine";
-import { buildGpx } from "@/lib/routes/buildGpx";
+import { buildGpx, slugifyFileName } from "@/lib/routes/buildGpx";
 import type { SegmentState } from "@/components/adventures/RouteBuilderMap";
 
 const supabase = createClient(
@@ -20,16 +20,6 @@ const RouteBuilderMap = dynamic(() => import("@/components/adventures/RouteBuild
     </div>
   ),
 });
-
-function slugifyFileName(name: string) {
-  const slug = name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-
-  return slug || "veloquest-route";
-}
 
 type SnapResult = { points: [number, number][]; highways: (string | null)[] };
 
