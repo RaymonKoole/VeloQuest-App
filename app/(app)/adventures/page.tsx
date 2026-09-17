@@ -4,9 +4,11 @@ import { useState } from "react";
 import RoutesTab from "@/components/adventures/RoutesTab";
 import ActivitiesTab from "@/components/adventures/ActivitiesTab";
 import SegmentsTab from "@/components/adventures/SegmentsTab";
+import RouteBuilderTab from "@/components/adventures/RouteBuilderTab";
 
 const TABS = [
   { id: "routes", label: "🗺️ Kaart" },
+  { id: "builder", label: "📍 Bouwen" },
   { id: "activities", label: "📋 Ritten" },
   { id: "segments", label: "🚵 Segmenten" },
 ] as const;
@@ -42,6 +44,7 @@ export default function AdventuresPage() {
 
       <div className="mt-6">
         {tab === "routes" && <RoutesTab />}
+        {tab === "builder" && <RouteBuilderTab />}
         {tab === "activities" && <ActivitiesTab />}
         {tab === "segments" && <SegmentsTab />}
       </div>
