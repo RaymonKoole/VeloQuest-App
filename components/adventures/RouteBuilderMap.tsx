@@ -1,12 +1,19 @@
 "use client";
 
+import { Fragment } from "react";
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 const BRAND_COLOR = "#d59a57";
 const BRAND_COLOR_DARK = "#2a1608";
+const ERROR_COLOR = "#f87171";
 const DEFAULT_CENTER: [number, number] = [52.1, 5.3];
+
+export type SegmentState = {
+  status: "loading" | "done" | "error";
+  points: [number, number][];
+};
 
 function pinIcon(index: number) {
   return L.divIcon({
@@ -29,15 +36,17 @@ function ClickHandler({ onAddPoint }: { onAddPoint: (lat: number, lng: number) =
 }
 
 export default function RouteBuilderMap({
-  points,
+  waypoints,
+  segments,
   onAddPoint,
   onRemovePoint,
 }: {
-  points: [number, number][];
+  waypoints: [number, number][];
+  segments: SegmentState[];
   onAddPoint: (lat: number, lng: number) => void;
   onRemovePoint: (index: number) => void;
 }) {
-  const center = points.length > 0 ? points[0] : DEFAULT_CENTER;
+  const center = waypoints.length > 0 ? waypoints[0] : DEFAULT_CENTER;
 
   return (
     <MapContainer center={center} zoom={13} className="h-full w-full" scrollWheelZoom>
@@ -48,33 +57,39 @@ export default function RouteBuilderMap({
 
       <ClickHandler onAddPoint={onAddPoint} />
 
-      {points.length > 1 && (
-        <>
-          <Polyline
-            positions={points}
-            pathOptions={{
-              color: BRAND_COLOR_DARK,
-              weight: 6,
-              opacity: 0.8,
-              lineCap: "round",
-              lineJoin: "round",
-            }}
-          />
+      {segments.map((segment, index) => {
+        const isFallback = segment.status !== "done";
+        const color = segment.status === "error" ? ERROR_COLOR : BRAND_COLOR;
 
-          <Polyline
-            positions={points}
-            pathOptions={{
-              color: BRAND_COLOR,
-              weight: 3,
-              opacity: 1,
-              lineCap: "round",
-              lineJoin: "round",
-            }}
-          />
-        </>
-      )}
+        return (
+          <Fragment key={`segment-${index}`}>
+            <Polyline
+              positions={segment.points}
+              pathOptions={{
+                color: BRAND_COLOR_DARK,
+                weight: 6,
+                opacity: isFallback ? 0.4 : 0.8,
+                lineCap: "round",
+                lineJoin: "round",
+              }}
+            />
 
-      {points.map((point, index) => (
+            <Polyline
+              positions={segment.points}
+              pathOptions={{
+                color,
+                weight: 3,
+                opacity: isFallback ? 0.6 : 1,
+                dashArray: isFallback ? "6, 8" : undefined,
+                lineCap: "round",
+                lineJoin: "round",
+              }}
+            />
+          </Fragment>
+        );
+      })}
+
+      {waypoints.map((point, index) => (
         <Marker key={`${index}-${point[0]}-${point[1]}`} position={point} icon={pinIcon(index)}>
           <Popup>
             <div className="min-w-[140px]">
