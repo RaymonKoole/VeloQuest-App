@@ -124,23 +124,33 @@ export async function calculateSkills(userId: string) {
           .not("poi_name", "is", null)
       : { count: 0 };
 
+  // Elke skill gebruikt een heel andere ruwe eenheid (km, calorieën, aantal
+  // ritten, minuten...) terwijl er maar één gedeelde XP-curve is
+  // (lib/progression/skillLevel.ts). Zonder normalisatie zouden skills met van
+  // nature grote ruwe getallen (bv. Power via calorieën) veel sneller
+  // niveaus stijgen dan skills met kleine getallen (bv. Explorer via
+  // ritaantal), ook al steek je er evenveel moeite in. Deze vermenigvuldigers
+  // zijn zo gekozen dat een vergelijkbaar actief fietsjaar in elke skill tot
+  // een vergelijkbaar niveau leidt (Runescape-achtig: dezelfde curve, maar
+  // afgestemde XP-opbrengst per skill) — schattingen op basis van realistische
+  // jaarstatistieken, bij te stellen als het in de praktijk scheef aanvoelt.
   const skillXp = {
-    Cycling: totalDistance,
-    Climbing: totalElevation / 10,
-    Endurance: totalMovingTimeMinutes / 10,
-    Explorer: totalRides,
-    Speed: fastDistanceKm,
-    Racing: (segmentAttempts || 0) + (prCount || 0) * 5,
-    Adventure: gravelDistanceKm,
-    Navigator: uniquePlaces * 20,
-    Social: (cafeStops || 0) * 3,
-    Discipline: longestStreak * 100,
-    Power: totalCalories,
-    Popularity: totalKudos,
-    Winter: seasonRideCounts.winter,
-    Spring: seasonRideCounts.spring,
-    Summer: seasonRideCounts.summer,
-    Autumn: seasonRideCounts.autumn,
+    Cycling: totalDistance * 24,
+    Climbing: totalElevation * 3.3,
+    Endurance: totalMovingTimeMinutes * 7.5,
+    Explorer: totalRides * 880,
+    Speed: fastDistanceKm * 53,
+    Racing: ((segmentAttempts || 0) + (prCount || 0) * 5) * 125,
+    Adventure: gravelDistanceKm * 165,
+    Navigator: uniquePlaces * 8800,
+    Social: (cafeStops || 0) * 2650,
+    Discipline: longestStreak * 8800,
+    Power: totalCalories * 0.66,
+    Popularity: totalKudos * 66,
+    Winter: seasonRideCounts.winter * 3600,
+    Spring: seasonRideCounts.spring * 3600,
+    Summer: seasonRideCounts.summer * 3600,
+    Autumn: seasonRideCounts.autumn * 3600,
   };
 
   const { data: skills, error: skillsError } =
