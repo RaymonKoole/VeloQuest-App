@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
       await supabaseAdmin
         .from("strava_activities")
         .select(
-          "id, strava_activity_id, name, activity_type, distance, start_date, start_lat, start_lng, summary_polyline, city, country"
+          "id, strava_activity_id, name, activity_type, distance, start_date, start_lat, start_lng, summary_polyline, city, country, photo_url"
         )
         .eq("user_id", user.id)
         .in("activity_type", ["Ride", "GravelRide"])
