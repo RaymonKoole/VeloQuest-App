@@ -217,11 +217,13 @@ for (const activity of cyclingActivities) {
   });
 }
 
-// Bepaal welke ritten nog verrijkt moeten worden (streams/segments/kudos):
-// gebaseerd op het ontbreken van een activity_streams-rij, niet op "nieuw
-// t.o.v. de vorige sync". Zo blijven oude ritten in de wachtrij staan totdat
-// ze daadwerkelijk verrijkt zijn, in plaats van na één sync permanent
-// overgeslagen te worden.
+// Bepaal welke ritten nog verrijkt moeten worden. Twee onafhankelijke
+// dimensies: streams (route-/hoogtedata, obv het ontbreken van een
+// activity_streams-rij) en detail (kudos/calories/foto, obv photo_checked_at).
+// Los van elkaar bijhouden voorkomt dat een rit die al wél streams heeft
+// (van vóór photo_url bestond) voor altijd wordt overgeslagen voor de
+// detail-check — en voorkomt evengoed dat we streams opnieuw ophalen voor
+// ritten die alleen nog een detail-backfill nodig hebben.
 const savedDbIds = savedActivities.map((activity) => activity.dbId);
 
 const { data: enrichedStreamRows } =
@@ -236,8 +238,23 @@ const enrichedDbIds = new Set(
   (enrichedStreamRows || []).map((row) => row.activity_id)
 );
 
+const { data: detailCheckedRows } =
+  savedDbIds.length > 0
+    ? await supabaseAdmin
+        .from("strava_activities")
+        .select("id, photo_checked_at")
+        .in("id", savedDbIds)
+    : { data: [] as { id: number; photo_checked_at: string | null }[] };
+
+const detailCheckedDbIds = new Set(
+  (detailCheckedRows || [])
+    .filter((row) => row.photo_checked_at !== null)
+    .map((row) => row.id)
+);
+
 const needsEnrichment = savedActivities.filter(
-  (activity) => !enrichedDbIds.has(activity.dbId)
+  (activity) =>
+    !enrichedDbIds.has(activity.dbId) || !detailCheckedDbIds.has(activity.dbId)
 );
 
 let attemptedCount = 0;
@@ -259,102 +276,113 @@ for (const { dbId, stravaActivityId } of needsEnrichment) {
     break;
   }
 
-  try {
-    const detail = await fetchActivityDetail(stravaActivityId, stravaAccessToken);
+  const needsDetail = !detailCheckedDbIds.has(dbId);
+  const needsStreams = !enrichedDbIds.has(dbId);
 
-    // Strava geeft alleen de "primary" foto van een activiteit direct terug
-    // (geen losse aanroep nodig); pak de grootste beschikbare thumbnail-maat.
-    const photoUrl: string | null =
-      detail.photos?.primary?.urls?.["600"] ??
-      detail.photos?.primary?.urls?.["100"] ??
-      null;
+  if (needsDetail) {
+    try {
+      const detail = await fetchActivityDetail(stravaActivityId, stravaAccessToken);
 
-    const { error: detailUpdateError } = await supabaseAdmin
-      .from("strava_activities")
-      .update({
-        kudos_count: detail.kudos_count ?? null,
-        calories: detail.calories ?? null,
-        photo_url: photoUrl,
-      })
-      .eq("id", dbId);
+      // Strava geeft alleen de "primary" foto van een activiteit direct terug
+      // (geen losse aanroep nodig); pak de grootste beschikbare thumbnail-maat.
+      const photoUrl: string | null =
+        detail.photos?.primary?.urls?.["600"] ??
+        detail.photos?.primary?.urls?.["100"] ??
+        null;
 
-    if (detailUpdateError) {
-      console.error(
-        `Opslaan van activiteitdetail mislukt voor rit ${dbId} (Strava-id ${stravaActivityId}):`,
-        detailUpdateError
-      );
-    }
+      const { error: detailUpdateError } = await supabaseAdmin
+        .from("strava_activities")
+        .update({
+          kudos_count: detail.kudos_count ?? null,
+          calories: detail.calories ?? null,
+          photo_url: photoUrl,
+          // Vastleggen dat de detail-check heeft plaatsgevonden, los van of
+          // er daadwerkelijk een foto was — anders zou een rit zonder foto
+          // bij elke sync opnieuw geprobeerd worden.
+          photo_checked_at: new Date().toISOString(),
+        })
+        .eq("id", dbId);
 
-    if (Array.isArray(detail.segment_efforts) && detail.segment_efforts.length > 0) {
-      const effortRows = detail.segment_efforts
-        .filter((effort: any) => effort.segment?.id)
-        .map((effort: any) => ({
-          activity_id: dbId,
-          user_id: user.id,
-          segment_id: effort.segment.id,
-          segment_name: effort.segment?.name ?? null,
-          elapsed_time: effort.elapsed_time ?? null,
-          pr_rank: effort.pr_rank ?? null,
-          kom_rank: effort.kom_rank ?? null,
-        }));
+      if (detailUpdateError) {
+        console.error(
+          `Opslaan van activiteitdetail mislukt voor rit ${dbId} (Strava-id ${stravaActivityId}):`,
+          detailUpdateError
+        );
+      }
 
-      if (effortRows.length > 0) {
-        const { error: effortsError } = await supabaseAdmin
-          .from("activity_segment_efforts")
-          .upsert(effortRows, { onConflict: "activity_id,segment_id" });
+      if (Array.isArray(detail.segment_efforts) && detail.segment_efforts.length > 0) {
+        const effortRows = detail.segment_efforts
+          .filter((effort: any) => effort.segment?.id)
+          .map((effort: any) => ({
+            activity_id: dbId,
+            user_id: user.id,
+            segment_id: effort.segment.id,
+            segment_name: effort.segment?.name ?? null,
+            elapsed_time: effort.elapsed_time ?? null,
+            pr_rank: effort.pr_rank ?? null,
+            kom_rank: effort.kom_rank ?? null,
+          }));
 
-        if (effortsError) {
-          console.error(
-            `Opslaan van segment-efforts mislukt voor rit ${dbId} (Strava-id ${stravaActivityId}):`,
-            effortsError
-          );
+        if (effortRows.length > 0) {
+          const { error: effortsError } = await supabaseAdmin
+            .from("activity_segment_efforts")
+            .upsert(effortRows, { onConflict: "activity_id,segment_id" });
+
+          if (effortsError) {
+            console.error(
+              `Opslaan van segment-efforts mislukt voor rit ${dbId} (Strava-id ${stravaActivityId}):`,
+              effortsError
+            );
+          }
         }
       }
+    } catch (detailError) {
+      console.error(
+        `Activiteitdetail ophalen mislukt voor ${stravaActivityId}:`,
+        detailError
+      );
     }
-  } catch (detailError) {
-    console.error(
-      `Activiteitdetail ophalen mislukt voor ${stravaActivityId}:`,
-      detailError
-    );
   }
 
-  try {
-    const streams = await fetchActivityStreams(stravaActivityId, stravaAccessToken);
+  if (needsStreams) {
+    try {
+      const streams = await fetchActivityStreams(stravaActivityId, stravaAccessToken);
 
-    // Ook wanneer Strava geen streams heeft voor deze activiteit (streams is
-    // dan null, bv. handmatig ingevoerde ritten) slaan we een (lege) rij op.
-    // Zo telt deze activiteit als "verwerkt" en komt hij niet iedere sync
-    // opnieuw in de wachtrij terecht, wat anders ten koste zou gaan van de
-    // ritten die nog wél echt verrijkt moeten worden.
-    const { error: streamsUpsertError } = await supabaseAdmin
-      .from("activity_streams")
-      .upsert(
-        {
-          activity_id: dbId,
-          user_id: user.id,
-          time: streams?.time?.data ?? null,
-          latlng: streams?.latlng?.data ?? null,
-          altitude: streams?.altitude?.data ?? null,
-          velocity_smooth: streams?.velocity_smooth?.data ?? null,
-          heartrate: streams?.heartrate?.data ?? null,
-          cadence: streams?.cadence?.data ?? null,
-          watts: streams?.watts?.data ?? null,
-          moving: streams?.moving?.data ?? null,
-        },
-        { onConflict: "activity_id" }
-      );
+      // Ook wanneer Strava geen streams heeft voor deze activiteit (streams is
+      // dan null, bv. handmatig ingevoerde ritten) slaan we een (lege) rij op.
+      // Zo telt deze activiteit als "verwerkt" en komt hij niet iedere sync
+      // opnieuw in de wachtrij terecht, wat anders ten koste zou gaan van de
+      // ritten die nog wél echt verrijkt moeten worden.
+      const { error: streamsUpsertError } = await supabaseAdmin
+        .from("activity_streams")
+        .upsert(
+          {
+            activity_id: dbId,
+            user_id: user.id,
+            time: streams?.time?.data ?? null,
+            latlng: streams?.latlng?.data ?? null,
+            altitude: streams?.altitude?.data ?? null,
+            velocity_smooth: streams?.velocity_smooth?.data ?? null,
+            heartrate: streams?.heartrate?.data ?? null,
+            cadence: streams?.cadence?.data ?? null,
+            watts: streams?.watts?.data ?? null,
+            moving: streams?.moving?.data ?? null,
+          },
+          { onConflict: "activity_id" }
+        );
 
-    if (streamsUpsertError) {
+      if (streamsUpsertError) {
+        console.error(
+          `Opslaan van streams mislukt voor rit ${dbId} (Strava-id ${stravaActivityId}):`,
+          streamsUpsertError
+        );
+      }
+    } catch (streamError) {
       console.error(
-        `Opslaan van streams mislukt voor rit ${dbId} (Strava-id ${stravaActivityId}):`,
-        streamsUpsertError
+        `Streams ophalen mislukt voor ${stravaActivityId}:`,
+        streamError
       );
     }
-  } catch (streamError) {
-    console.error(
-      `Streams ophalen mislukt voor ${stravaActivityId}:`,
-      streamError
-    );
   }
 
   attemptedCount++;
@@ -378,8 +406,23 @@ const finalEnrichedDbIds = new Set(
   (finalEnrichedStreamRows || []).map((row) => row.activity_id)
 );
 
+const { data: finalDetailCheckedRows } =
+  savedDbIds.length > 0
+    ? await supabaseAdmin
+        .from("strava_activities")
+        .select("id, photo_checked_at")
+        .in("id", savedDbIds)
+    : { data: [] as { id: number; photo_checked_at: string | null }[] };
+
+const finalDetailCheckedDbIds = new Set(
+  (finalDetailCheckedRows || [])
+    .filter((row) => row.photo_checked_at !== null)
+    .map((row) => row.id)
+);
+
 remainingToEnrich = savedActivities.filter(
-  (activity) => !finalEnrichedDbIds.has(activity.dbId)
+  (activity) =>
+    !finalEnrichedDbIds.has(activity.dbId) || !finalDetailCheckedDbIds.has(activity.dbId)
 ).length;
 enrichedThisSync = Math.max(needsEnrichment.length - remainingToEnrich, 0);
 enrichFailedThisSync = Math.max(attemptedCount - enrichedThisSync, 0);
