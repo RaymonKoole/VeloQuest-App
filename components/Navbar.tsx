@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { href: "/quests", label: "Quests", icon: "⚔️" },
   { href: "/shop", label: "Winkel", icon: "🛍️" },
   { href: "/adventures", label: "Avonturen", icon: "🗺️" },
+  { href: "/account", label: "Account", icon: "⚙️" },
 ];
 
 export default function Navbar() {
