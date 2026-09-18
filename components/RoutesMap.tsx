@@ -38,6 +38,7 @@ export type RouteActivity = {
   summary_polyline: string | null;
   city: string | null;
   country: string | null;
+  photo_url: string | null;
 };
 
 function formatDate(dateString: string | null) {
@@ -95,16 +96,17 @@ function clusterIcon(count: number) {
   });
 }
 
-function FitBounds({
-  activities,
-  selectedPoints,
-}: {
-  activities: RouteActivity[];
-  selectedPoints: [number, number][] | null;
-}) {
+function FitBounds({ activities }: { activities: RouteActivity[] }) {
   const map = useMap();
 
   useEffect(() => {
+    // De kaart wordt dynamic (ssr:false) ingeladen in een container die pas
+    // net zijn uiteindelijke afmeting krijgt (de "Kaart laden..."-placeholder
+    // wordt vervangen); Leaflet meet zijn eigen containergrootte alleen bij
+    // initialisatie. Zonder invalidateSize() blijft Leaflet's interne
+    // pixel-origin gebaseerd op die eerste (mogelijk verouderde) afmeting.
+    map.invalidateSize();
+
     const points: [number, number][] = activities.map(
       (activity) => [activity.start_lat, activity.start_lng] as [number, number]
     );
@@ -114,15 +116,13 @@ function FitBounds({
     }
 
     map.fitBounds(L.latLngBounds(points), { padding: [40, 40] });
-    // Only re-fit to the full data set when the data itself changes, not on selection
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activities, map]);
 
-  useEffect(() => {
-    if (selectedPoints && selectedPoints.length > 1) {
-      map.fitBounds(L.latLngBounds(selectedPoints), { padding: [60, 60] });
-    }
-  }, [selectedPoints, map]);
+  // Bewust geen tweede fitBounds op de geselecteerde route: dat opnieuw
+  // inzoomen vlak nadat een klik ook een popup opent, corrumpeerde de
+  // popup-positionering (Leaflet plaatste 'm duizenden pixels buiten beeld).
+  // Selectie blijft zichtbaar via de gemarkeerde routekleur en de
+  // "✕ Toon alle routes"-knop.
 
   return null;
 }
@@ -160,6 +160,20 @@ export default function RoutesMap({
     [activities]
   );
 
+  // Stabiele positie-referentie per cluster: een inline array-literal in JSX
+  // (`[first.start_lat, first.start_lng]`) is een NIEUW object bij elke
+  // render, ook als de waarden gelijk blijven — dat verwart react-leaflet's
+  // Marker/Popup-positionering bij re-renders die niets met de kaartdata te
+  // maken hebben (bv. het aanklikken van een marker zelf).
+  const clusterPositions = useMemo(
+    () =>
+      clusters.map(
+        (clusterActivities) =>
+          [clusterActivities[0].start_lat, clusterActivities[0].start_lng] as [number, number]
+      ),
+    [clusters]
+  );
+
   const center: [number, number] =
     activities.length > 0
       ? [activities[0].start_lat, activities[0].start_lng]
@@ -184,24 +198,6 @@ export default function RoutesMap({
 
     return map;
   }, [activities]);
-
-  const selectedPoints = useMemo(() => {
-    if (!selectedIds) {
-      return null;
-    }
-
-    const points: [number, number][] = [];
-
-    for (const id of selectedIds) {
-      const linePoints = activityPolylines.get(id);
-
-      if (linePoints) {
-        points.push(...linePoints);
-      }
-    }
-
-    return points.length > 0 ? points : null;
-  }, [selectedIds, activityPolylines]);
 
   function selectCluster(clusterActivities: RouteActivity[]) {
     const ids = new Set(clusterActivities.map((activity) => activity.id));
@@ -305,19 +301,24 @@ export default function RoutesMap({
             </Fragment>
           )}
 
-      {clusters.map((clusterActivities) => {
+      {clusters.map((clusterActivities, index) => {
         const first = clusterActivities[0];
 
         return (
           <Marker
             key={first.id}
-            position={[first.start_lat, first.start_lng]}
+            position={clusterPositions[index]}
             icon={clusterIcon(clusterActivities.length)}
             eventHandlers={{
               click: () => selectCluster(clusterActivities),
             }}
           >
-            <Popup maxHeight={220} autoPanPadding={[24, 24]} autoPanPaddingTopLeft={[24, 70]}>
+            <Popup
+              position={clusterPositions[index]}
+              maxHeight={220}
+              autoPanPadding={[24, 24]}
+              autoPanPaddingTopLeft={[24, 70]}
+            >
               <div className="min-w-[200px]">
                 {clusterActivities.length > 1 && (
                   <p className="mb-2 text-xs font-semibold text-neutral-500">
@@ -333,41 +334,51 @@ export default function RoutesMap({
                         e.stopPropagation();
                         selectCluster([activity]);
                       }}
-                      className="cursor-pointer border-b border-neutral-200 pb-2 transition hover:bg-neutral-50 last:border-0 last:pb-0"
+                      className="flex cursor-pointer gap-3 border-b border-neutral-200 pb-2 transition hover:bg-neutral-50 last:border-0 last:pb-0"
                     >
-                      <p className="font-semibold text-neutral-900">
-                        {activity.name || "Fietsrit"}
-                        {!activityPolylines.get(activity.id) && (
-                          <span className="ml-1 text-xs font-normal text-neutral-400">
-                            (geen route opgeslagen)
-                          </span>
-                        )}
-                      </p>
+                      {activity.photo_url && (
+                        <img
+                          src={activity.photo_url}
+                          alt=""
+                          className="h-12 w-12 shrink-0 rounded-lg object-cover"
+                        />
+                      )}
 
-                      <p className="text-xs text-neutral-600">
-                        {formatDate(activity.start_date)} ·{" "}
-                        {((activity.distance || 0) / 1000).toFixed(1)} km
-                      </p>
-
-                      {activity.city && (
-                        <p className="text-xs text-neutral-500">
-                          {activity.city}
-                          {activity.country ? `, ${activity.country}` : ""}
+                      <div className="min-w-0">
+                        <p className="font-semibold text-neutral-900">
+                          {activity.name || "Fietsrit"}
+                          {!activityPolylines.get(activity.id) && (
+                            <span className="ml-1 text-xs font-normal text-neutral-400">
+                              (geen route opgeslagen)
+                            </span>
+                          )}
                         </p>
-                      )}
 
-                      {activityPolylines.get(activity.id) && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            downloadActivityGpx(activity, activityPolylines.get(activity.id)!);
-                          }}
-                          className="mt-1 rounded-lg bg-neutral-800 px-2 py-1 text-xs font-semibold text-white hover:bg-neutral-700"
-                        >
-                          ⬇️ GPX
-                        </button>
-                      )}
+                        <p className="text-xs text-neutral-600">
+                          {formatDate(activity.start_date)} ·{" "}
+                          {((activity.distance || 0) / 1000).toFixed(1)} km
+                        </p>
+
+                        {activity.city && (
+                          <p className="text-xs text-neutral-500">
+                            {activity.city}
+                            {activity.country ? `, ${activity.country}` : ""}
+                          </p>
+                        )}
+
+                        {activityPolylines.get(activity.id) && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              downloadActivityGpx(activity, activityPolylines.get(activity.id)!);
+                            }}
+                            className="mt-1 rounded-lg bg-neutral-800 px-2 py-1 text-xs font-semibold text-white hover:bg-neutral-700"
+                          >
+                            ⬇️ GPX
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
 
@@ -383,7 +394,7 @@ export default function RoutesMap({
         );
       })}
 
-      <FitBounds activities={activities} selectedPoints={selectedPoints} />
+      <FitBounds activities={activities} />
 
       {selectedIds && (
         <div className="leaflet-top leaflet-right">
