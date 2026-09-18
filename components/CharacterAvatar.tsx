@@ -147,7 +147,7 @@ export default function CharacterAvatar({
       {part(
         "bike_handlebar",
         <path
-          d="M 172 88 Q 179 82 184 86"
+          d="M 172 88 Q 182 80 190 83 Q 196 85 194 92"
           fill="none"
           stroke={fillFor("bike_handlebar")}
           strokeWidth="3"
@@ -210,10 +210,13 @@ export default function CharacterAvatar({
         <rect x="52" y="150" width="18" height="9" rx="4" fill={colorFor("shoes")} />
       )}
 
-      {/* Torso (jersey) */}
+      {/* Torso (jersey) + korte ritssluiting bij de hals */}
       {part(
         "jersey",
-        <rect x="30" y="46" width="40" height="56" rx="12" fill={fillFor("jersey")} />
+        <g>
+          <rect x="30" y="46" width="40" height="56" rx="12" fill={fillFor("jersey")} />
+          <line x1="50" y1="47" x2="50" y2="54" stroke="#00000035" strokeWidth="2" strokeLinecap="round" />
+        </g>
       )}
 
       {/* Accessoire: badge op de borst */}
@@ -222,18 +225,34 @@ export default function CharacterAvatar({
         <circle cx="50" cy="62" r="6" fill={colorFor("accessory")} stroke="#00000033" />
       )}
 
-      {/* Hoofd + helm + bril */}
+      {/* Hoofd + helm (ruime koepel + ventilatiegleuven + kinbandje) + bril */}
       <circle cx="50" cy="26" r="16" fill={SKIN_COLOR} />
       {part(
         "helmet",
-        <path
-          d="M 33 26 A 17 17 0 0 1 67 26 L 67 20 Q 67 8 50 8 Q 33 8 33 20 Z"
-          fill={colorFor("helmet")}
-        />
+        <g>
+          <path d="M 26 32 A 24 26 0 0 1 74 32 Z" fill={colorFor("helmet")} />
+          <path
+            d="M 50 9 L 50 30 M 40 11 L 37 27 M 60 11 L 63 27"
+            stroke="#00000035"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            fill="none"
+          />
+          <path
+            d="M 40 39 Q 50 45 60 39"
+            stroke="#00000055"
+            strokeWidth="2"
+            strokeLinecap="round"
+            fill="none"
+          />
+        </g>
       )}
       {part(
         "glasses",
-        <rect x="38" y="27" width="24" height="6" rx="3" fill={colorFor("glasses")} />
+        <path
+          d="M 35 28 Q 50 23 65 28 L 64 33 Q 50 29 36 33 Z"
+          fill={colorFor("glasses")}
+        />
       )}
     </svg>
   );

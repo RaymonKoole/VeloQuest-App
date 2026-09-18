@@ -74,6 +74,29 @@ export default function ShopPage() {
   const [error, setError] = useState("");
   const [buyingId, setBuyingId] = useState<number | null>(null);
   const [message, setMessage] = useState("");
+  const [openSlots, setOpenSlots] = useState<Set<string>>(new Set());
+
+  function openSlot(slot: string) {
+    setOpenSlots((current) => new Set(current).add(slot));
+
+    requestAnimationFrame(() => {
+      document.getElementById(`slot-${slot}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
+  function toggleSlot(slot: string) {
+    setOpenSlots((current) => {
+      const next = new Set(current);
+
+      if (next.has(slot)) {
+        next.delete(slot);
+      } else {
+        next.add(slot);
+      }
+
+      return next;
+    });
+  }
 
   async function getAuthHeaders() {
     const {
@@ -178,22 +201,41 @@ export default function ShopPage() {
         <>
           <div className="mt-6 flex flex-wrap gap-2">
             {SLOT_ORDER.filter((slot) => itemsBySlot.has(slot)).map((slot) => (
-              <a
+              <button
                 key={slot}
-                href={`#slot-${slot}`}
+                type="button"
+                onClick={() => openSlot(slot)}
                 className="rounded-lg bg-neutral-900 px-3 py-1.5 text-xs text-neutral-300 hover:bg-neutral-800"
               >
-                {SLOT_LABELS[slot] || slot}
-              </a>
+                {SLOT_LABELS[slot] || slot}{" "}
+                <span className="text-neutral-600">
+                  ({(itemsBySlot.get(slot) || []).length})
+                </span>
+              </button>
             ))}
           </div>
 
-          <div className="mt-8 space-y-10">
-            {SLOT_ORDER.filter((slot) => itemsBySlot.has(slot)).map((slot) => (
-              <section key={slot} id={`slot-${slot}`}>
-                <h2 className="text-xl font-bold">{SLOT_LABELS[slot] || slot}</h2>
+          <div className="mt-8 space-y-4">
+            {SLOT_ORDER.filter((slot) => itemsBySlot.has(slot)).map((slot) => {
+              const isOpen = openSlots.has(slot);
+              const count = (itemsBySlot.get(slot) || []).length;
 
-                <div className="mt-4 space-y-6">
+              return (
+                <section key={slot} id={`slot-${slot}`} className="rounded-2xl border border-neutral-800">
+                  <button
+                    type="button"
+                    onClick={() => toggleSlot(slot)}
+                    className="flex w-full items-center justify-between px-5 py-4 text-left"
+                  >
+                    <h2 className="text-xl font-bold">{SLOT_LABELS[slot] || slot}</h2>
+                    <span className="flex items-center gap-2 text-sm text-neutral-500">
+                      {count} item{count === 1 ? "" : "s"}
+                      <span className="text-neutral-600">{isOpen ? "▲" : "▼"}</span>
+                    </span>
+                  </button>
+
+                  {isOpen && (
+                <div className="px-5 pb-6 space-y-6">
                   {groupItemsBySkill(itemsBySlot.get(slot) || []).map((group) => (
                     <div key={group.key}>
                       <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-500">
@@ -261,8 +303,10 @@ export default function ShopPage() {
                     </div>
                   ))}
                 </div>
-              </section>
-            ))}
+                  )}
+                </section>
+              );
+            })}
           </div>
         </>
       )}
