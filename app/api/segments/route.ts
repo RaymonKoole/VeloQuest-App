@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { fetchAllSegmentEfforts } from "@/lib/segments/fetchAllSegmentEfforts";
 
 const MAX_PR_SEGMENTS_SHOWN = 8;
 
@@ -38,41 +39,17 @@ export async function GET(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // Supabase/PostgREST geeft standaard maximaal 1000 rijen per query terug.
-    // Actieve gebruikers hebben inmiddels meer dan 1000 segment-efforts in
-    // totaal, dus zonder paginering werden sommige segmenten stilzwijgend te
-    // laag geteld ("aantal keer gereden"). Haal daarom in batches alle rijen op.
-    const EFFORTS_PAGE_SIZE = 1000;
-    const efforts: {
-      activity_id: number;
-      segment_id: number | null;
-      segment_name: string | null;
-      elapsed_time: number | null;
-      pr_rank: number | null;
-      kom_rank: number | null;
-    }[] = [];
+    let efforts;
 
-    for (let from = 0; ; from += EFFORTS_PAGE_SIZE) {
-      const { data: page, error: effortsError } = await supabaseAdmin
-        .from("activity_segment_efforts")
-        .select("activity_id, segment_id, segment_name, elapsed_time, pr_rank, kom_rank")
-        .eq("user_id", user.id)
-        .range(from, from + EFFORTS_PAGE_SIZE - 1);
+    try {
+      efforts = await fetchAllSegmentEfforts(supabaseAdmin, user.id);
+    } catch (effortsError) {
+      console.error("Segments database error:", effortsError);
 
-      if (effortsError) {
-        console.error("Segments database error:", effortsError);
-
-        return NextResponse.json(
-          { error: "Segmenten konden niet worden opgehaald." },
-          { status: 500 }
-        );
-      }
-
-      efforts.push(...(page || []));
-
-      if (!page || page.length < EFFORTS_PAGE_SIZE) {
-        break;
-      }
+      return NextResponse.json(
+        { error: "Segmenten konden niet worden opgehaald." },
+        { status: 500 }
+      );
     }
 
     const activityIds = Array.from(
