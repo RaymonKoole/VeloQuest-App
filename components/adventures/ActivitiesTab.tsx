@@ -2,15 +2,25 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
+import { buildElevationProfile, type ElevationPoint } from "@/lib/routes/elevationProfile";
+import ElevationProfile from "@/components/adventures/ElevationProfile";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
 );
 
+type ProfileState = {
+  status: "loading" | "done" | "error";
+  points: ElevationPoint[];
+  error?: string;
+};
+
 export default function ActivitiesTab() {
   const [activities, setActivities] = useState<any[]>([]);
   const [activitiesLoading, setActivitiesLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [profiles, setProfiles] = useState<Record<number, ProfileState>>({});
 
   useEffect(() => {
     async function loadActivities() {
@@ -39,6 +49,61 @@ export default function ActivitiesTab() {
 
     loadActivities();
   }, []);
+
+  async function toggleProfile(activityId: number) {
+    if (expandedId === activityId) {
+      setExpandedId(null);
+      return;
+    }
+
+    setExpandedId(activityId);
+
+    if (profiles[activityId]) {
+      return;
+    }
+
+    setProfiles((current) => ({
+      ...current,
+      [activityId]: { status: "loading", points: [] },
+    }));
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session) {
+      window.location.href = "/login";
+      return;
+    }
+
+    const response = await fetch(`/api/activities/${activityId}/streams`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      setProfiles((current) => ({
+        ...current,
+        [activityId]: {
+          status: "error",
+          points: [],
+          error: data.error || "Hoogteprofiel kon niet worden geladen.",
+        },
+      }));
+      return;
+    }
+
+    const points = buildElevationProfile(data.altitude, data.latlng);
+
+    setProfiles((current) => ({
+      ...current,
+      [activityId]:
+        points.length >= 2
+          ? { status: "done", points }
+          : { status: "error", points: [], error: "Onvoldoende hoogtedata voor deze rit." },
+    }));
+  }
 
   return (
     <>
@@ -86,26 +151,39 @@ export default function ActivitiesTab() {
                 )
               : "";
 
+            const profile = profiles[activity.id];
+            const isExpanded = expandedId === activity.id;
+
             return (
               <div
                 key={activity.id}
                 className="rounded-2xl border border-neutral-800 bg-neutral-900 p-5"
               >
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">
-                        🚴
-                      </span>
+                  <div className="flex items-center gap-4">
+                    {activity.photo_url && (
+                      <img
+                        src={activity.photo_url}
+                        alt=""
+                        className="h-16 w-16 shrink-0 rounded-xl object-cover"
+                      />
+                    )}
 
-                      <h2 className="text-lg font-semibold">
-                        {activity.name || "Fietsrit"}
-                      </h2>
+                    <div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">
+                          🚴
+                        </span>
+
+                        <h2 className="text-lg font-semibold">
+                          {activity.name || "Fietsrit"}
+                        </h2>
+                      </div>
+
+                      <p className="mt-1 text-sm text-neutral-500">
+                        {date}
+                      </p>
                     </div>
-
-                    <p className="mt-1 text-sm text-neutral-500">
-                      {date}
-                    </p>
                   </div>
 
                   <div className="grid grid-cols-3 gap-6 text-right">
@@ -145,6 +223,26 @@ export default function ActivitiesTab() {
                     </div>
                   </div>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => toggleProfile(activity.id)}
+                  className="mt-4 text-sm font-medium text-[#d59a57] hover:opacity-80"
+                >
+                  {isExpanded ? "▲ Verberg hoogteprofiel" : "📈 Toon hoogteprofiel"}
+                </button>
+
+                {isExpanded && (
+                  <div className="mt-4 rounded-xl border border-neutral-800 bg-neutral-950 p-4">
+                    {!profile || profile.status === "loading" ? (
+                      <p className="text-sm text-neutral-400">Hoogteprofiel laden...</p>
+                    ) : profile.status === "error" ? (
+                      <p className="text-sm text-neutral-500">{profile.error}</p>
+                    ) : (
+                      <ElevationProfile points={profile.points} />
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}

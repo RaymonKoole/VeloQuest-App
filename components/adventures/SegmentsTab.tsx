@@ -31,6 +31,37 @@ function rankBadge(index: number) {
   return `${index + 1}`;
 }
 
+// Strava's klimcategorie: 0/null = geen categorie, 1 t/m 4 = Categorie 4 t/m
+// Categorie 1 (oplopend zwaarder), 5 = HC (Hors Catégorie, zwaarst).
+const CLIMB_CATEGORY_LABELS: Record<number, string> = {
+  1: "Cat. 4",
+  2: "Cat. 3",
+  3: "Cat. 2",
+  4: "Cat. 1",
+  5: "HC",
+};
+
+function climbCategoryBadge(climbCategory: number | null) {
+  if (!climbCategory) {
+    return null;
+  }
+
+  const label = CLIMB_CATEGORY_LABELS[climbCategory];
+
+  if (!label) {
+    return null;
+  }
+
+  return (
+    <span
+      title="Strava-klimcategorie (Cat. 4 = lichtste categorie, HC = zwaarst)"
+      className="ml-2 rounded-full bg-red-500/15 px-2 py-0.5 text-xs font-medium text-red-400"
+    >
+      ⛰️ {label}
+    </span>
+  );
+}
+
 export default function SegmentsTab() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -127,6 +158,7 @@ export default function SegmentsTab() {
                         <td className="px-4 py-3 text-neutral-400">{rankBadge(index)}</td>
                         <td className="px-4 py-3 font-medium">
                           {segment.name}
+                          {climbCategoryBadge(segment.climbCategory)}
                           {segment.bestKomRank && (
                             <span
                               title={`Top 10 op dit segment (#${segment.bestKomRank})`}
@@ -216,7 +248,10 @@ export default function SegmentsTab() {
                         }`}
                       >
                         <td className="px-4 py-3 text-neutral-400">{rankBadge(index)}</td>
-                        <td className="px-4 py-3 font-medium">{segment.name}</td>
+                        <td className="px-4 py-3 font-medium">
+                          {segment.name}
+                          {climbCategoryBadge(segment.climbCategory)}
+                        </td>
                         <td className="px-4 py-3 font-semibold text-amber-400">
                           ⭐ {segment.starCount.toLocaleString("nl-NL")}
                         </td>
