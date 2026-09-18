@@ -9,6 +9,7 @@ import {
 } from "@/lib/gear/types";
 import { skillNameNl } from "@/lib/skills/skillNameNl";
 import { rarityNl } from "@/lib/gear/rarityNl";
+import { groupItemsBySkill } from "@/lib/gear/groupBySkill";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -174,72 +175,96 @@ export default function ShopPage() {
       ) : error ? (
         <p className="mt-8 text-sm text-red-400">{error}</p>
       ) : (
-        <div className="mt-8 space-y-10">
-          {SLOT_ORDER.filter((slot) => itemsBySlot.has(slot)).map((slot) => (
-            <section key={slot}>
-              <h2 className="text-xl font-bold">{SLOT_LABELS[slot] || slot}</h2>
+        <>
+          <div className="mt-6 flex flex-wrap gap-2">
+            {SLOT_ORDER.filter((slot) => itemsBySlot.has(slot)).map((slot) => (
+              <a
+                key={slot}
+                href={`#slot-${slot}`}
+                className="rounded-lg bg-neutral-900 px-3 py-1.5 text-xs text-neutral-300 hover:bg-neutral-800"
+              >
+                {SLOT_LABELS[slot] || slot}
+              </a>
+            ))}
+          </div>
 
-              <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {(itemsBySlot.get(slot) || []).map((item) => (
-                  <div
-                    key={item.id}
-                    className="rounded-2xl border bg-neutral-900 p-5"
-                    style={{ borderColor: `${item.color}55` }}
-                  >
-                    <div className="flex items-start gap-3">
-                      <span className="text-3xl">{item.icon}</span>
+          <div className="mt-8 space-y-10">
+            {SLOT_ORDER.filter((slot) => itemsBySlot.has(slot)).map((slot) => (
+              <section key={slot} id={`slot-${slot}`}>
+                <h2 className="text-xl font-bold">{SLOT_LABELS[slot] || slot}</h2>
 
-                      <div className="flex-1">
-                        <h3 className="font-semibold">{item.name}</h3>
+                <div className="mt-4 space-y-6">
+                  {groupItemsBySkill(itemsBySlot.get(slot) || []).map((group) => (
+                    <div key={group.key}>
+                      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                        {group.label}
+                      </h3>
 
-                        <span
-                          className="mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium capitalize"
-                          style={{
-                            backgroundColor: `${item.color}22`,
-                            color: item.color,
-                          }}
-                        >
-                          {rarityNl(item.rarity)}
-                        </span>
+                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        {group.items.map((item) => (
+                          <div
+                            key={item.id}
+                            className="rounded-2xl border bg-neutral-900 p-5"
+                            style={{ borderColor: `${item.color}55` }}
+                          >
+                            <div className="flex items-start gap-3">
+                              <span className="text-3xl">{item.icon}</span>
+
+                              <div className="flex-1">
+                                <h3 className="font-semibold">{item.name}</h3>
+
+                                <span
+                                  className="mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium capitalize"
+                                  style={{
+                                    backgroundColor: `${item.color}22`,
+                                    color: item.color,
+                                  }}
+                                >
+                                  {rarityNl(item.rarity)}
+                                </span>
+                              </div>
+                            </div>
+
+                            {item.description && (
+                              <p className="mt-3 text-xs text-neutral-500">
+                                {item.description}
+                              </p>
+                            )}
+
+                            <p className="mt-3 text-xs text-neutral-600">
+                              Vereist: {formatRequirement(item)}
+                            </p>
+
+                            <div className="mt-4">
+                              {item.owned ? (
+                                <span className="inline-block rounded-lg bg-green-500/20 px-3 py-1.5 text-sm font-medium text-green-400">
+                                  ✓ In bezit
+                                </span>
+                              ) : item.eligible ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleBuy(item.id)}
+                                  disabled={buyingId === item.id}
+                                  className="rounded-lg bg-[#d59a57] px-3 py-1.5 text-sm font-medium text-neutral-950 hover:opacity-90 disabled:opacity-50"
+                                >
+                                  {buyingId === item.id ? "Bezig..." : "Koop"}
+                                </button>
+                              ) : (
+                                <span className="inline-block rounded-lg bg-neutral-800 px-3 py-1.5 text-sm text-neutral-500">
+                                  🔒 Vereist: {formatRequirement(item)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
-
-                    {item.description && (
-                      <p className="mt-3 text-xs text-neutral-500">
-                        {item.description}
-                      </p>
-                    )}
-
-                    <p className="mt-3 text-xs text-neutral-600">
-                      Vereist: {formatRequirement(item)}
-                    </p>
-
-                    <div className="mt-4">
-                      {item.owned ? (
-                        <span className="inline-block rounded-lg bg-green-500/20 px-3 py-1.5 text-sm font-medium text-green-400">
-                          ✓ In bezit
-                        </span>
-                      ) : item.eligible ? (
-                        <button
-                          type="button"
-                          onClick={() => handleBuy(item.id)}
-                          disabled={buyingId === item.id}
-                          className="rounded-lg bg-[#d59a57] px-3 py-1.5 text-sm font-medium text-neutral-950 hover:opacity-90 disabled:opacity-50"
-                        >
-                          {buyingId === item.id ? "Bezig..." : "Koop"}
-                        </button>
-                      ) : (
-                        <span className="inline-block rounded-lg bg-neutral-800 px-3 py-1.5 text-sm text-neutral-500">
-                          🔒 Vereist: {formatRequirement(item)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        </>
       )}
     </>
   );

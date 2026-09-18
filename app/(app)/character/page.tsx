@@ -7,6 +7,7 @@ import { ALL_GEAR_SLOTS, type GearSlot } from "@/lib/gear/types";
 import { getSkillProgress } from "@/lib/progression/skillLevel";
 import { skillNameNl } from "@/lib/skills/skillNameNl";
 import { getSkillInfo } from "@/lib/skills/skillInfo";
+import { groupItemsBySkill } from "@/lib/gear/groupBySkill";
 import Link from "next/link";
 
 const supabase = createClient(
@@ -265,20 +266,32 @@ export default function CharacterPage() {
                       Nog niks vrijgespeeld voor dit slot — bezoek de winkel.
                     </p>
                   ) : (
-                    (ownedBySlot[openSlot] || []).map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        disabled={equipping}
-                        onClick={() => handleEquip(openSlot, item.id)}
-                        className={`flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-neutral-900 disabled:opacity-50 ${
-                          item.equipped ? "text-[#d59a57]" : "text-neutral-200"
-                        }`}
-                      >
-                        <span>{item.icon}</span>
-                        <span>{item.name}</span>
-                        {item.equipped && <span className="ml-auto">✓</span>}
-                      </button>
+                    groupItemsBySkill(ownedBySlot[openSlot] || []).map((group) => (
+                      <div key={group.key}>
+                        <p className="mt-2 px-3 text-[10px] font-semibold uppercase tracking-wide text-neutral-600 first:mt-0">
+                          {group.label}
+                        </p>
+
+                        {group.items.map((item) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            disabled={equipping}
+                            onClick={() => handleEquip(openSlot, item.id)}
+                            className={`flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-neutral-900 disabled:opacity-50 ${
+                              item.equipped ? "text-[#d59a57]" : "text-neutral-200"
+                            }`}
+                          >
+                            <span
+                              className="h-3 w-3 shrink-0 rounded-full border border-white/20"
+                              style={{ backgroundColor: item.color }}
+                            />
+                            <span>{item.icon}</span>
+                            <span>{item.name}</span>
+                            {item.equipped && <span className="ml-auto">✓</span>}
+                          </button>
+                        ))}
+                      </div>
                     ))
                   )}
                 </div>
@@ -359,6 +372,10 @@ export default function CharacterPage() {
                                       : "text-neutral-200"
                                   }`}
                                 >
+                                  <span
+                                    className="h-3 w-3 shrink-0 rounded-full border border-white/20"
+                                    style={{ backgroundColor: item.color }}
+                                  />
                                   <span className="w-5 text-center">
                                     {item.icon}
                                   </span>
