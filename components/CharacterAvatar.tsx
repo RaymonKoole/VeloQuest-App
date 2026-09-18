@@ -20,6 +20,8 @@ type CharacterAvatarProps = {
 const EMPTY_COLOR = "#3f3f46";
 const SKIN_COLOR = "#c98f65";
 const TIRE_COLOR = "#71717a";
+const OUTLINE = "#00000030";
+const FACE_INK = "#2b2116";
 
 // De officiële UCI-wereldkampioenstrui-banden (van boven naar onder).
 const RAINBOW_BANDS = ["#0067b1", "#e2231a", "#231f20", "#ffd200", "#00a651"];
@@ -169,52 +171,53 @@ export default function CharacterAvatar({
       {/* Armen (mouwen = jersey-kleur) + handschoenen */}
       {part(
         "jersey",
-        <rect x="16" y="50" width="12" height="44" rx="6" fill={fillFor("jersey")} />
+        <rect x="16" y="50" width="12" height="44" rx="6" fill={fillFor("jersey")} stroke={OUTLINE} />
       )}
       {part(
         "jersey",
-        <rect x="72" y="50" width="12" height="44" rx="6" fill={fillFor("jersey")} />
+        <rect x="72" y="50" width="12" height="44" rx="6" fill={fillFor("jersey")} stroke={OUTLINE} />
       )}
       {part(
         "gloves",
-        <circle cx="22" cy="97" r="7" fill={colorFor("gloves")} />
+        <circle cx="22" cy="97" r="7" fill={colorFor("gloves")} stroke={OUTLINE} />
       )}
       {part(
         "gloves",
-        <circle cx="78" cy="97" r="7" fill={colorFor("gloves")} />
+        <circle cx="78" cy="97" r="7" fill={colorFor("gloves")} stroke={OUTLINE} />
       )}
 
       {/* Benen: broek (bovenbeen) + sokken (onderbeen) + schoenen */}
       {part(
         "shorts",
-        <rect x="32" y="100" width="15" height="30" rx="6" fill={colorFor("shorts")} />
+        <rect x="32" y="100" width="15" height="30" rx="6" fill={colorFor("shorts")} stroke={OUTLINE} />
       )}
       {part(
         "shorts",
-        <rect x="53" y="100" width="15" height="30" rx="6" fill={colorFor("shorts")} />
+        <rect x="53" y="100" width="15" height="30" rx="6" fill={colorFor("shorts")} stroke={OUTLINE} />
       )}
       {part(
         "socks",
-        <rect x="33" y="128" width="13" height="24" rx="5" fill={colorFor("socks")} />
+        <rect x="33" y="128" width="13" height="24" rx="5" fill={colorFor("socks")} stroke={OUTLINE} />
       )}
       {part(
         "socks",
-        <rect x="54" y="128" width="13" height="24" rx="5" fill={colorFor("socks")} />
+        <rect x="54" y="128" width="13" height="24" rx="5" fill={colorFor("socks")} stroke={OUTLINE} />
       )}
       {part(
         "shoes",
-        <rect x="30" y="150" width="18" height="9" rx="4" fill={colorFor("shoes")} />
+        <rect x="30" y="150" width="18" height="9" rx="4" fill={colorFor("shoes")} stroke={OUTLINE} />
       )}
       {part(
         "shoes",
-        <rect x="52" y="150" width="18" height="9" rx="4" fill={colorFor("shoes")} />
+        <rect x="52" y="150" width="18" height="9" rx="4" fill={colorFor("shoes")} stroke={OUTLINE} />
       )}
 
-      {/* Torso (jersey) + korte ritssluiting bij de hals */}
+      {/* Torso (jersey) + ritssluiting bij de hals + zachte hoogtelichting voor volume */}
       {part(
         "jersey",
         <g>
-          <rect x="30" y="46" width="40" height="56" rx="12" fill={fillFor("jersey")} />
+          <rect x="30" y="46" width="40" height="56" rx="12" fill={fillFor("jersey")} stroke={OUTLINE} />
+          <ellipse cx="40" cy="56" rx="7" ry="12" fill="#ffffff" opacity="0.12" />
           <line x1="50" y1="47" x2="50" y2="54" stroke="#00000035" strokeWidth="2" strokeLinecap="round" />
         </g>
       )}
@@ -225,21 +228,33 @@ export default function CharacterAvatar({
         <circle cx="50" cy="62" r="6" fill={colorFor("accessory")} stroke="#00000033" />
       )}
 
-      {/* Hoofd + helm (ruime koepel + ventilatiegleuven + kinbandje) + bril */}
-      <circle cx="50" cy="26" r="16" fill={SKIN_COLOR} />
+      {/* Hoofd (iets groter voor meer personage-gevoel) + gezicht + helm + bril */}
+      <circle cx="50" cy="25" r="18" fill={SKIN_COLOR} stroke={OUTLINE} />
+
+      {/* Gezicht: wenkbrauwen, ogen, glimlach — zit los van de bril, zodat er
+          altijd een gezicht te zien is, ook zonder bril uitgerust. Zit onder
+          de rand van de helm (die stopt bij y=20), niet erachter. */}
+      <g>
+        <path d="M 39 22 Q 42 20 45 22" stroke={FACE_INK} strokeWidth="1.4" strokeLinecap="round" fill="none" />
+        <path d="M 55 22 Q 58 20 61 22" stroke={FACE_INK} strokeWidth="1.4" strokeLinecap="round" fill="none" />
+        <circle cx="43" cy="26" r="1.7" fill={FACE_INK} />
+        <circle cx="57" cy="26" r="1.7" fill={FACE_INK} />
+        <path d="M 44 37 Q 50 40.5 56 37" stroke={FACE_INK} strokeWidth="1.6" strokeLinecap="round" fill="none" />
+      </g>
+
       {part(
         "helmet",
         <g>
-          <path d="M 26 32 A 24 26 0 0 1 74 32 Z" fill={colorFor("helmet")} />
+          <path d="M 23 20 A 27 19 0 0 1 77 20 Z" fill={colorFor("helmet")} stroke={OUTLINE} />
           <path
-            d="M 50 9 L 50 30 M 40 11 L 37 27 M 60 11 L 63 27"
+            d="M 50 3 L 50 19 M 39 5 L 36 17 M 61 5 L 64 17"
             stroke="#00000035"
             strokeWidth="1.5"
             strokeLinecap="round"
             fill="none"
           />
           <path
-            d="M 40 39 Q 50 45 60 39"
+            d="M 39 42 Q 50 48 61 42"
             stroke="#00000055"
             strokeWidth="2"
             strokeLinecap="round"
@@ -250,8 +265,9 @@ export default function CharacterAvatar({
       {part(
         "glasses",
         <path
-          d="M 35 28 Q 50 23 65 28 L 64 33 Q 50 29 36 33 Z"
+          d="M 32 27 Q 50 22 68 27 L 67 32 Q 50 28 33 32 Z"
           fill={colorFor("glasses")}
+          opacity={equipment.glasses ? 1 : 0.15}
         />
       )}
     </svg>
