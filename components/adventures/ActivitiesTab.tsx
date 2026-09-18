@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { buildElevationProfile, type ElevationPoint } from "@/lib/routes/elevationProfile";
+import { decodePolyline } from "@/lib/routes/decodePolyline";
 import ElevationProfile from "@/components/adventures/ElevationProfile";
+import RouteShape from "@/components/adventures/RouteShape";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -21,6 +23,7 @@ export default function ActivitiesTab() {
   const [activitiesLoading, setActivitiesLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [profiles, setProfiles] = useState<Record<number, ProfileState>>({});
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadActivities() {
@@ -153,20 +156,28 @@ export default function ActivitiesTab() {
 
             const profile = profiles[activity.id];
             const isExpanded = expandedId === activity.id;
+            const routePoints = activity.summary_polyline
+              ? decodePolyline(activity.summary_polyline)
+              : [];
+            const photoUrls: string[] = activity.photo_urls?.length
+              ? activity.photo_urls
+              : activity.photo_url
+              ? [activity.photo_url]
+              : [];
 
             return (
               <div
                 key={activity.id}
                 className="rounded-2xl border border-neutral-800 bg-neutral-900 p-5"
               >
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                  <div className="flex items-center gap-4">
-                    {activity.photo_url && (
-                      <img
-                        src={activity.photo_url}
-                        alt=""
-                        className="h-16 w-16 shrink-0 rounded-xl object-cover"
-                      />
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex items-start gap-4">
+                    {routePoints.length > 1 ? (
+                      <RouteShape points={routePoints} size={88} />
+                    ) : (
+                      <div className="flex h-[88px] w-[88px] shrink-0 items-center justify-center rounded-xl bg-neutral-950 text-xs text-neutral-600">
+                        Geen route
+                      </div>
                     )}
 
                     <div>
@@ -224,6 +235,25 @@ export default function ActivitiesTab() {
                   </div>
                 </div>
 
+                {photoUrls.length > 0 && (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {photoUrls.map((url, i) => (
+                      <button
+                        key={`${activity.id}-${i}`}
+                        type="button"
+                        onClick={() => setLightboxUrl(url)}
+                        className="overflow-hidden rounded-lg transition hover:opacity-80"
+                      >
+                        <img
+                          src={url}
+                          alt=""
+                          className="h-20 w-20 object-cover"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 <button
                   type="button"
                   onClick={() => toggleProfile(activity.id)}
@@ -246,6 +276,27 @@ export default function ActivitiesTab() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-6"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <img
+            src={lightboxUrl}
+            alt=""
+            className="max-h-full max-w-full rounded-xl object-contain"
+          />
+
+          <button
+            type="button"
+            onClick={() => setLightboxUrl(null)}
+            className="absolute right-6 top-6 rounded-full bg-neutral-900/80 px-3 py-1.5 text-sm font-semibold text-white hover:bg-neutral-800"
+          >
+            ✕ Sluiten
+          </button>
         </div>
       )}
     </>

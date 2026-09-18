@@ -52,7 +52,9 @@ export async function GET(request: NextRequest) {
             start_date,
             average_speed,
             max_speed,
-            photo_url
+            photo_url,
+            photo_urls,
+            summary_polyline
           `
         )
         .eq("user_id", user.id)

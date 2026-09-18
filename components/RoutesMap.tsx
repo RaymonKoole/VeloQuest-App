@@ -39,6 +39,7 @@ export type RouteActivity = {
   city: string | null;
   country: string | null;
   photo_url: string | null;
+  photo_urls: string[] | null;
 };
 
 function formatDate(dateString: string | null) {
@@ -327,60 +328,86 @@ export default function RoutesMap({
                 )}
 
                 <div className="space-y-2">
-                  {clusterActivities.slice(0, 10).map((activity) => (
-                    <div
-                      key={activity.id}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        selectCluster([activity]);
-                      }}
-                      className="flex cursor-pointer gap-3 border-b border-neutral-200 pb-2 transition hover:bg-neutral-50 last:border-0 last:pb-0"
-                    >
-                      {activity.photo_url && (
-                        <img
-                          src={activity.photo_url}
-                          alt=""
-                          className="h-12 w-12 shrink-0 rounded-lg object-cover"
-                        />
-                      )}
+                  {clusterActivities.slice(0, 10).map((activity) => {
+                    const photoUrls = activity.photo_urls?.length
+                      ? activity.photo_urls
+                      : activity.photo_url
+                      ? [activity.photo_url]
+                      : [];
 
-                      <div className="min-w-0">
-                        <p className="font-semibold text-neutral-900">
-                          {activity.name || "Fietsrit"}
-                          {!activityPolylines.get(activity.id) && (
-                            <span className="ml-1 text-xs font-normal text-neutral-400">
-                              (geen route opgeslagen)
-                            </span>
-                          )}
-                        </p>
+                    return (
+                      <div
+                        key={activity.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          selectCluster([activity]);
+                        }}
+                        className="flex cursor-pointer gap-3 border-b border-neutral-200 pb-2 transition hover:bg-neutral-50 last:border-0 last:pb-0"
+                      >
+                        {photoUrls[0] && (
+                          <img
+                            src={photoUrls[0]}
+                            alt=""
+                            className="h-12 w-12 shrink-0 rounded-lg object-cover"
+                          />
+                        )}
 
-                        <p className="text-xs text-neutral-600">
-                          {formatDate(activity.start_date)} ·{" "}
-                          {((activity.distance || 0) / 1000).toFixed(1)} km
-                        </p>
-
-                        {activity.city && (
-                          <p className="text-xs text-neutral-500">
-                            {activity.city}
-                            {activity.country ? `, ${activity.country}` : ""}
+                        <div className="min-w-0">
+                          <p className="font-semibold text-neutral-900">
+                            {activity.name || "Fietsrit"}
+                            {!activityPolylines.get(activity.id) && (
+                              <span className="ml-1 text-xs font-normal text-neutral-400">
+                                (geen route opgeslagen)
+                              </span>
+                            )}
                           </p>
-                        )}
 
-                        {activityPolylines.get(activity.id) && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              downloadActivityGpx(activity, activityPolylines.get(activity.id)!);
-                            }}
-                            className="mt-1 rounded-lg bg-neutral-800 px-2 py-1 text-xs font-semibold text-white hover:bg-neutral-700"
-                          >
-                            ⬇️ GPX
-                          </button>
-                        )}
+                          <p className="text-xs text-neutral-600">
+                            {formatDate(activity.start_date)} ·{" "}
+                            {((activity.distance || 0) / 1000).toFixed(1)} km
+                          </p>
+
+                          {activity.city && (
+                            <p className="text-xs text-neutral-500">
+                              {activity.city}
+                              {activity.country ? `, ${activity.country}` : ""}
+                            </p>
+                          )}
+
+                          {photoUrls.length > 1 && (
+                            <div className="mt-1 flex gap-1">
+                              {photoUrls.slice(1, 4).map((url, i) => (
+                                <img
+                                  key={i}
+                                  src={url}
+                                  alt=""
+                                  className="h-8 w-8 rounded object-cover"
+                                />
+                              ))}
+                              {photoUrls.length > 4 && (
+                                <span className="flex h-8 w-8 items-center justify-center rounded bg-neutral-200 text-[10px] font-semibold text-neutral-600">
+                                  +{photoUrls.length - 4}
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          {activityPolylines.get(activity.id) && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                downloadActivityGpx(activity, activityPolylines.get(activity.id)!);
+                              }}
+                              className="mt-1 rounded-lg bg-neutral-800 px-2 py-1 text-xs font-semibold text-white hover:bg-neutral-700"
+                            >
+                              ⬇️ GPX
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
 
                   {clusterActivities.length > 10 && (
                     <p className="text-xs text-neutral-500">

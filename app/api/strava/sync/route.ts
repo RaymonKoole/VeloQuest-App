@@ -6,6 +6,7 @@ import { calculateSkills } from "@/lib/skills/calculateSkills";
 import { calculateQuests } from "@/lib/quests/calculateQuests";
 import { getValidStravaAccessToken } from "@/lib/strava/getAccessToken";
 import { fetchActivityDetail } from "@/lib/strava/fetchActivityDetail";
+import { fetchActivityPhotos } from "@/lib/strava/fetchActivityPhotos";
 import { fetchActivityStreams } from "@/lib/strava/fetchActivityStreams";
 import { fetchSegmentDetail } from "@/lib/strava/fetchSegmentDetail";
 
@@ -290,12 +291,32 @@ for (const { dbId, stravaActivityId } of needsEnrichment) {
         detail.photos?.primary?.urls?.["100"] ??
         null;
 
+      // Alle foto's (niet alleen de primary) vereisen een aparte Strava-
+      // aanroep — alleen de moeite waard als er meer dan 1 foto is.
+      let photoUrls: string[] = photoUrl ? [photoUrl] : [];
+
+      if ((detail.photos?.count ?? 0) > 1) {
+        try {
+          const allPhotos = await fetchActivityPhotos(stravaActivityId, stravaAccessToken);
+
+          if (allPhotos.length > 0) {
+            photoUrls = allPhotos;
+          }
+        } catch (photosError) {
+          console.error(
+            `Extra foto's ophalen mislukt voor rit ${dbId} (Strava-id ${stravaActivityId}):`,
+            photosError
+          );
+        }
+      }
+
       const { error: detailUpdateError } = await supabaseAdmin
         .from("strava_activities")
         .update({
           kudos_count: detail.kudos_count ?? null,
           calories: detail.calories ?? null,
           photo_url: photoUrl,
+          photo_urls: photoUrls.length > 0 ? photoUrls : null,
           // Vastleggen dat de detail-check heeft plaatsgevonden, los van of
           // er daadwerkelijk een foto was — anders zou een rit zonder foto
           // bij elke sync opnieuw geprobeerd worden.

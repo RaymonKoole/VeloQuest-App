@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getLevelFromXp } from "@/lib/xp/level";
 import { calculateLongestStreak } from "@/lib/stats/longestStreak";
+import { fetchAllSegmentEfforts } from "@/lib/segments/fetchAllSegmentEfforts";
 
 const DUTCH_MONTHS = [
   "januari", "februari", "maart", "april", "mei", "juni",
@@ -231,32 +232,37 @@ export async function GET(request: NextRequest) {
     let favoriteSegment: { name: string; count: number } | null = null;
 
     if (activityIds.length > 0) {
-      const { data: segmentEfforts } = await supabaseAdmin
-        .from("activity_segment_efforts")
-        .select("segment_name")
-        .eq("user_id", user.id)
-        .not("segment_name", "is", null);
+      // Gedeelde, gepagineerde helper (ook gebruikt door /api/segments) zodat
+      // "hoe vaak gereden" hier nooit meer kan afwijken van de Segmenten-tab.
+      const allEfforts = await fetchAllSegmentEfforts(supabaseAdmin, user.id);
 
-      const segmentCounts = new Map<string, number>();
+      // Groeperen op segment_id, niet op naam: verschillende Strava-segmenten
+      // delen soms dezelfde straatnaam (bv. een segment per rijrichting), en
+      // zouden anders ten onrechte bij elkaar opgeteld worden.
+      const segmentCounts = new Map<number, { name: string; count: number }>();
 
-      for (const effort of segmentEfforts || []) {
-        if (!effort.segment_name) {
+      for (const effort of allEfforts) {
+        if (!effort.segment_id) {
           continue;
         }
 
-        segmentCounts.set(
-          effort.segment_name,
-          (segmentCounts.get(effort.segment_name) || 0) + 1
-        );
+        const existing = segmentCounts.get(effort.segment_id);
+
+        if (existing) {
+          existing.count += 1;
+        } else {
+          segmentCounts.set(effort.segment_id, {
+            name: effort.segment_name || "Onbekend segment",
+            count: 1,
+          });
+        }
       }
 
-      const topSegment = Array.from(segmentCounts.entries()).sort(
-        (a, b) => b[1] - a[1]
+      const topSegment = Array.from(segmentCounts.values()).sort(
+        (a, b) => b.count - a.count
       )[0];
 
-      favoriteSegment = topSegment
-        ? { name: topSegment[0], count: topSegment[1] }
-        : null;
+      favoriteSegment = topSegment || null;
     }
 
     return NextResponse.json({
