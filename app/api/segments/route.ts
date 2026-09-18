@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
       ? await supabaseAdmin
           .from("segments")
           .select(
-            "segment_id, distance, average_grade, elevation_high, elevation_low, athlete_count, effort_count, star_count, city, country"
+            "segment_id, distance, average_grade, elevation_high, elevation_low, athlete_count, effort_count, star_count, city, country, climb_category"
           )
           .in("segment_id", segmentIds)
       : { data: [] as any[] };
@@ -179,6 +179,9 @@ export async function GET(request: NextRequest) {
         starCount: detail?.star_count ?? null,
         city: detail?.city ?? null,
         country: detail?.country ?? null,
+        // Strava's klimcategorie: 0 = geen categorie, 1 t/m 4 = Categorie 4 t/m
+        // Categorie 1 (oplopend zwaarder), 5 = HC (Hors Catégorie, zwaarst).
+        climbCategory: detail?.climb_category ?? null,
       };
     }
 

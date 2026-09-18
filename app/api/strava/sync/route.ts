@@ -262,11 +262,19 @@ for (const { dbId, stravaActivityId } of needsEnrichment) {
   try {
     const detail = await fetchActivityDetail(stravaActivityId, stravaAccessToken);
 
+    // Strava geeft alleen de "primary" foto van een activiteit direct terug
+    // (geen losse aanroep nodig); pak de grootste beschikbare thumbnail-maat.
+    const photoUrl: string | null =
+      detail.photos?.primary?.urls?.["600"] ??
+      detail.photos?.primary?.urls?.["100"] ??
+      null;
+
     const { error: detailUpdateError } = await supabaseAdmin
       .from("strava_activities")
       .update({
         kudos_count: detail.kudos_count ?? null,
         calories: detail.calories ?? null,
+        photo_url: photoUrl,
       })
       .eq("id", dbId);
 

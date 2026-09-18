@@ -51,7 +51,8 @@ export async function GET(request: NextRequest) {
             total_elevation_gain,
             start_date,
             average_speed,
-            max_speed
+            max_speed,
+            photo_url
           `
         )
         .eq("user_id", user.id)
